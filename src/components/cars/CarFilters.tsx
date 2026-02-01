@@ -1,5 +1,5 @@
 import { CarFilters, CarSegment, FuelType, SortOption } from '@/types';
-import { brands, models } from '@/data/mockCars';
+import { useBrands, useModels } from '@/hooks/useSupabase';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {
@@ -50,6 +50,9 @@ export function CarFiltersComponent({
   sortBy,
   onSortChange,
 }: CarFiltersProps) {
+  const { data: brands = [] } = useBrands();
+  const { data: models = [] } = useModels();
+
   const updateFilter = (key: keyof CarFilters, value: any) => {
     onFiltersChange({ ...filters, [key]: value || undefined });
   };

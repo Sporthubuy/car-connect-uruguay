@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { CarCard } from '@/components/cars/CarCard';
-import { getCars, reviews, brands } from '@/data/mockCars';
+import { useCars, useReviews, useBrands } from '@/hooks/useSupabase';
 import {
   ArrowRight,
   Car,
@@ -12,9 +12,8 @@ import {
   Star,
   Users,
   Search,
+  Loader2,
 } from 'lucide-react';
-
-const featuredCars = getCars().filter((car) => car.is_featured).slice(0, 4);
 
 const features = [
   {
@@ -40,6 +39,12 @@ const features = [
 ];
 
 const Index = () => {
+  const { data: allCars = [], isLoading: carsLoading } = useCars();
+  const { data: reviews = [] } = useReviews();
+  const { data: brands = [] } = useBrands();
+
+  const featuredCars = allCars.filter((car) => car.is_featured).slice(0, 4);
+
   return (
     <Layout>
       {/* Hero Section */}
@@ -48,7 +53,7 @@ const Index = () => {
         <div className="container-wide relative py-16 md:py-24 lg:py-32">
           <div className="max-w-3xl">
             <span className="inline-flex items-center px-3 py-1 mb-6 text-xs font-medium rounded-full bg-accent/20 text-accent">
-              🇺🇾 La plataforma #1 de autos en Uruguay
+              La plataforma #1 de autos en Uruguay
             </span>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
               Encontrá tu próximo{' '}
@@ -137,11 +142,17 @@ const Index = () => {
               </Button>
             </Link>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {featuredCars.map((car) => (
-              <CarCard key={car.id} car={car} />
-            ))}
-          </div>
+          {carsLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {featuredCars.map((car) => (
+                <CarCard key={car.id} car={car} />
+              ))}
+            </div>
+          )}
           <div className="mt-8 text-center sm:hidden">
             <Link to="/autos">
               <Button variant="outline" className="gap-2">
@@ -184,62 +195,64 @@ const Index = () => {
       </section>
 
       {/* Latest Reviews */}
-      <section className="py-16 bg-muted/30">
-        <div className="container-wide">
-          <div className="flex items-end justify-between mb-8">
-            <div>
-              <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
-                Últimas reviews
-              </h2>
-              <p className="text-muted-foreground">
-                Análisis detallados de nuestros expertos
-              </p>
-            </div>
-            <Link to="/reviews">
-              <Button variant="ghost" className="hidden sm:flex gap-2">
-                Ver todas
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {reviews.slice(0, 3).map((review) => (
-              <Link
-                key={review.id}
-                to={`/reviews/${review.slug}`}
-                className="group"
-              >
-                <article className="overflow-hidden rounded-xl bg-card border border-border hover:border-primary/30 hover:shadow-card transition-all duration-300">
-                  <div className="aspect-video overflow-hidden">
-                    <img
-                      src={review.cover_image}
-                      alt={review.title}
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                  </div>
-                  <div className="p-5">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="flex items-center gap-1 text-accent">
-                        <Star className="h-4 w-4 fill-current" />
-                        <span className="text-sm font-semibold">{review.rating}</span>
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        • {review.views.toLocaleString()} vistas
-                      </span>
-                    </div>
-                    <h3 className="font-semibold text-foreground mb-2 line-clamp-2 group-hover:text-primary transition-colors">
-                      {review.title}
-                    </h3>
-                    <p className="text-sm text-muted-foreground line-clamp-2">
-                      {review.excerpt}
-                    </p>
-                  </div>
-                </article>
+      {reviews.length > 0 && (
+        <section className="py-16 bg-muted/30">
+          <div className="container-wide">
+            <div className="flex items-end justify-between mb-8">
+              <div>
+                <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
+                  Últimas reviews
+                </h2>
+                <p className="text-muted-foreground">
+                  Análisis detallados de nuestros expertos
+                </p>
+              </div>
+              <Link to="/reviews">
+                <Button variant="ghost" className="hidden sm:flex gap-2">
+                  Ver todas
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
               </Link>
-            ))}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {reviews.slice(0, 3).map((review) => (
+                <Link
+                  key={review.id}
+                  to={`/reviews/${review.slug}`}
+                  className="group"
+                >
+                  <article className="overflow-hidden rounded-xl bg-card border border-border hover:border-primary/30 hover:shadow-card transition-all duration-300">
+                    <div className="aspect-video overflow-hidden">
+                      <img
+                        src={review.cover_image}
+                        alt={review.title}
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                    </div>
+                    <div className="p-5">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="flex items-center gap-1 text-accent">
+                          <Star className="h-4 w-4 fill-current" />
+                          <span className="text-sm font-semibold">{review.rating}</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          • {review.views.toLocaleString()} vistas
+                        </span>
+                      </div>
+                      <h3 className="font-semibold text-foreground mb-2 line-clamp-2 group-hover:text-primary transition-colors">
+                        {review.title}
+                      </h3>
+                      <p className="text-sm text-muted-foreground line-clamp-2">
+                        {review.excerpt}
+                      </p>
+                    </div>
+                  </article>
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* CTA Section */}
       <section className="py-16 bg-primary">

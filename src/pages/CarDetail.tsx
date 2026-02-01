@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { LeadModal } from '@/components/cars/LeadModal';
-import { getCarById, getCars } from '@/data/mockCars';
+import { useCarById, useCars } from '@/hooks/useSupabase';
 import { CarCard } from '@/components/cars/CarCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,11 +15,11 @@ import {
   Gauge,
   Zap,
   Users,
-  Box,
   Heart,
   Share2,
   Check,
   Car,
+  Loader2,
 } from 'lucide-react';
 
 const fuelTypeLabels: Record<string, string> = {
@@ -45,9 +45,20 @@ const segmentLabels: Record<string, string> = {
 
 const CarDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const car = getCarById(id || '');
+  const { data: car, isLoading } = useCarById(id || '');
+  const { data: allCars = [] } = useCars();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
+
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="container-wide py-16 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </Layout>
+    );
+  }
 
   if (!car) {
     return (
@@ -68,7 +79,7 @@ const CarDetail = () => {
     );
   }
 
-  const relatedCars = getCars()
+  const relatedCars = allCars
     .filter(
       (c) =>
         c.id !== car.id &&

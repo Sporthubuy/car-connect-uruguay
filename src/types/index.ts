@@ -92,6 +92,9 @@ export interface User {
   phone?: string;
   department?: string;
   city?: string;
+  address?: string;
+  birth_date?: string;
+  gender?: string;
   created_at: string;
 }
 

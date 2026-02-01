@@ -1,43 +1,74 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
 import { Car, Loader2, Mail, Lock, User, ArrowLeft } from 'lucide-react';
 
 const Auth = () => {
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('login');
+
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+
+  const [signupName, setSignupName] = useState('');
+  const [signupEmail, setSignupEmail] = useState('');
+  const [signupPassword, setSignupPassword] = useState('');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
-    // Simulate login
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    
-    toast.error('Backend no configurado', {
-      description: 'Conectá Supabase para habilitar autenticación',
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: loginEmail,
+      password: loginPassword,
     });
-    
+
     setIsLoading(false);
+
+    if (error) {
+      toast.error('Error al iniciar sesión', {
+        description: error.message === 'Invalid login credentials'
+          ? 'Email o contraseña incorrectos'
+          : error.message,
+      });
+    } else {
+      toast.success('¡Bienvenido de vuelta!');
+      navigate('/perfil');
+    }
   };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
-    // Simulate signup
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    
-    toast.error('Backend no configurado', {
-      description: 'Conectá Supabase para habilitar autenticación',
+
+    const { error } = await supabase.auth.signUp({
+      email: signupEmail,
+      password: signupPassword,
+      options: {
+        data: {
+          full_name: signupName,
+        },
+      },
     });
-    
+
     setIsLoading(false);
+
+    if (error) {
+      toast.error('Error al crear cuenta', {
+        description: error.message,
+      });
+    } else {
+      toast.success('¡Cuenta creada!', {
+        description: 'Revisá tu email para confirmar tu cuenta.',
+      });
+    }
   };
 
   return (
@@ -93,6 +124,8 @@ const Auth = () => {
                         placeholder="tu@email.com"
                         className="pl-10"
                         required
+                        value={loginEmail}
+                        onChange={(e) => setLoginEmail(e.target.value)}
                       />
                     </div>
                   </div>
@@ -106,6 +139,8 @@ const Auth = () => {
                         placeholder="••••••••"
                         className="pl-10"
                         required
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
                       />
                     </div>
                   </div>
@@ -147,6 +182,8 @@ const Auth = () => {
                         placeholder="Juan Pérez"
                         className="pl-10"
                         required
+                        value={signupName}
+                        onChange={(e) => setSignupName(e.target.value)}
                       />
                     </div>
                   </div>
@@ -160,6 +197,8 @@ const Auth = () => {
                         placeholder="tu@email.com"
                         className="pl-10"
                         required
+                        value={signupEmail}
+                        onChange={(e) => setSignupEmail(e.target.value)}
                       />
                     </div>
                   </div>
@@ -174,6 +213,8 @@ const Auth = () => {
                         className="pl-10"
                         required
                         minLength={8}
+                        value={signupPassword}
+                        onChange={(e) => setSignupPassword(e.target.value)}
                       />
                     </div>
                     <p className="text-xs text-muted-foreground">

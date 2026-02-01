@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
-import { events } from '@/data/mockCars';
+import { useEvents } from '@/hooks/useSupabase';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -10,9 +10,12 @@ import {
   Users,
   Lock,
   Calendar,
+  Loader2,
 } from 'lucide-react';
 
 const Events = () => {
+  const { data: events = [], isLoading } = useEvents();
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('es-UY', {
       weekday: 'long',
@@ -42,6 +45,12 @@ const Events = () => {
       </div>
 
       <div className="container-wide py-8">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+        <>
         {/* Events Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {events.map((event) => (
@@ -137,6 +146,8 @@ const Events = () => {
               Pronto anunciaremos nuevos eventos
             </p>
           </div>
+        )}
+        </>
         )}
 
         {/* CTA */}

@@ -2,18 +2,20 @@ import { useState, useMemo } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { CarCard } from '@/components/cars/CarCard';
 import { CarFiltersComponent } from '@/components/cars/CarFilters';
-import { getCars, brands, models } from '@/data/mockCars';
+import { useCars, useBrands, useModels } from '@/hooks/useSupabase';
 import { CarFilters, SortOption } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { SlidersHorizontal, Car } from 'lucide-react';
+import { SlidersHorizontal, Car, Loader2 } from 'lucide-react';
 
 const Cars = () => {
   const [filters, setFilters] = useState<CarFilters>({});
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
-  const allCars = getCars();
+  const { data: allCars = [], isLoading } = useCars();
+  const { data: brands = [] } = useBrands();
+  const { data: models = [] } = useModels();
 
   const filteredCars = useMemo(() => {
     let result = [...allCars];
@@ -66,7 +68,7 @@ const Cars = () => {
     }
 
     return result;
-  }, [allCars, filters, sortBy]);
+  }, [allCars, brands, models, filters, sortBy]);
 
   const activeFilterCount = Object.values(filters).filter(
     (v) => v !== undefined && v !== ''
@@ -146,8 +148,12 @@ const Cars = () => {
               </p>
             </div>
 
-            {/* Car Grid */}
-            {filteredCars.length > 0 ? (
+            {/* Loading */}
+            {isLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : filteredCars.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                 {filteredCars.map((car) => (
                   <CarCard key={car.id} car={car} />

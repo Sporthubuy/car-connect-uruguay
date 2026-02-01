@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
-import { communities } from '@/data/mockCars';
+import { useCommunities } from '@/hooks/useSupabase';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Users, MessageSquare, Plus, TrendingUp } from 'lucide-react';
+import { Users, MessageSquare, Plus, TrendingUp, Loader2 } from 'lucide-react';
 
 const Community = () => {
+  const { data: communities = [], isLoading } = useCommunities();
+
   return (
     <Layout>
       {/* Header */}

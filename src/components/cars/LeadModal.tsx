@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Car, URUGUAY_DEPARTMENTS } from '@/types';
+import { submitLead } from '@/lib/api';
 import {
   Dialog,
   DialogContent,
@@ -58,31 +59,35 @@ export function LeadModal({ car, isOpen, onClose }: LeadModalProps) {
   const onSubmit = async (data: LeadFormData) => {
     setIsSubmitting(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      await submitLead({
+        car_id: car.id,
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        department: data.department,
+        city: data.city,
+        message: data.message,
+      });
 
-    console.log('Lead submitted:', {
-      ...data,
-      car: {
-        id: car.id,
-        brand: car.brand.name,
-        model: car.model.name,
-        trim: car.name,
-      },
-    });
+      setIsSuccess(true);
 
-    setIsSubmitting(false);
-    setIsSuccess(true);
+      toast.success('¡Solicitud enviada!', {
+        description: 'Un asesor se pondrá en contacto contigo pronto.',
+      });
 
-    toast.success('¡Solicitud enviada!', {
-      description: 'Un asesor se pondrá en contacto contigo pronto.',
-    });
-
-    setTimeout(() => {
-      setIsSuccess(false);
-      reset();
-      onClose();
-    }, 2000);
+      setTimeout(() => {
+        setIsSuccess(false);
+        reset();
+        onClose();
+      }, 2000);
+    } catch {
+      toast.error('Error al enviar', {
+        description: 'Intentá de nuevo más tarde.',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleClose = () => {

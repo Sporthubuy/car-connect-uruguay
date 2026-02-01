@@ -1,9 +1,11 @@
 import { Link, useLocation } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Car, Menu, X, User, LogIn } from 'lucide-react';
+import { Car, Menu, X, User, LogIn, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 const navigation = [
   { name: 'Autos 0km', href: '/autos' },
@@ -14,7 +16,20 @@ const navigation = [
 
 export function Header() {
   const [isOpen, setIsOpen] = useState(false);
+  const [user, setUser] = useState<SupabaseUser | null>(null);
   const location = useLocation();
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const displayName = user
+    ? (user.user_metadata?.full_name || user.email?.split('@')[0] || 'Usuario')
+    : null;
 
   const isActive = (href: string) => {
     return location.pathname === href || location.pathname.startsWith(href + '/');
@@ -54,18 +69,36 @@ export function Header() {
 
         {/* Desktop Actions */}
         <div className="hidden md:flex items-center gap-3">
-          <Link to="/perfil">
-            <Button variant="ghost" size="sm" className="gap-2">
-              <User className="h-4 w-4" />
-              Mi Perfil
-            </Button>
-          </Link>
-          <Link to="/auth">
-            <Button size="sm" className="gap-2 bg-primary hover:bg-primary/90">
-              <LogIn className="h-4 w-4" />
-              Ingresar
-            </Button>
-          </Link>
+          {user ? (
+            <>
+              <Link to="/perfil">
+                <Button variant="ghost" size="sm" className="gap-2">
+                  <User className="h-4 w-4" />
+                  {displayName}
+                </Button>
+              </Link>
+              <Link to="/perfil?tab=settings">
+                <Button variant="outline" size="icon" className="h-8 w-8">
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link to="/perfil">
+                <Button variant="ghost" size="sm" className="gap-2">
+                  <User className="h-4 w-4" />
+                  Mi Perfil
+                </Button>
+              </Link>
+              <Link to="/auth">
+                <Button size="sm" className="gap-2 bg-primary hover:bg-primary/90">
+                  <LogIn className="h-4 w-4" />
+                  Ingresar
+                </Button>
+              </Link>
+            </>
+          )}
         </div>
 
         {/* Mobile Menu */}
@@ -96,18 +129,37 @@ export function Header() {
                 ))}
               </nav>
               <div className="flex flex-col gap-2 pt-4 border-t">
-                <Link to="/perfil" onClick={() => setIsOpen(false)}>
-                  <Button variant="outline" className="w-full justify-start gap-2">
-                    <User className="h-4 w-4" />
-                    Mi Perfil
-                  </Button>
-                </Link>
-                <Link to="/auth" onClick={() => setIsOpen(false)}>
-                  <Button className="w-full justify-start gap-2 bg-primary hover:bg-primary/90">
-                    <LogIn className="h-4 w-4" />
-                    Ingresar
-                  </Button>
-                </Link>
+                {user ? (
+                  <>
+                    <Link to="/perfil" onClick={() => setIsOpen(false)}>
+                      <Button variant="outline" className="w-full justify-start gap-2">
+                        <User className="h-4 w-4" />
+                        {displayName}
+                      </Button>
+                    </Link>
+                    <Link to="/perfil?tab=settings" onClick={() => setIsOpen(false)}>
+                      <Button variant="ghost" className="w-full justify-start gap-2">
+                        <Settings className="h-4 w-4" />
+                        Ajustes
+                      </Button>
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <Link to="/perfil" onClick={() => setIsOpen(false)}>
+                      <Button variant="outline" className="w-full justify-start gap-2">
+                        <User className="h-4 w-4" />
+                        Mi Perfil
+                      </Button>
+                    </Link>
+                    <Link to="/auth" onClick={() => setIsOpen(false)}>
+                      <Button className="w-full justify-start gap-2 bg-primary hover:bg-primary/90">
+                        <LogIn className="h-4 w-4" />
+                        Ingresar
+                      </Button>
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           </SheetContent>
