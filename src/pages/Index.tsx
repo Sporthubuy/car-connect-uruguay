@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { CarCard } from '@/components/cars/CarCard';
 import { useCars, useReviews, useBrands } from '@/hooks/useSupabase';
+import { getSiteSettings } from '@/lib/adminApi';
 import {
   ArrowRight,
   Car,
@@ -38,10 +40,28 @@ const features = [
   },
 ];
 
+const HERO_DEFAULTS: Record<string, string> = {
+  hero_badge: 'La plataforma #1 de autos en Uruguay',
+  hero_title: 'Encontrá tu próximo auto 0km',
+  hero_subtitle: 'Compará precios, leé reviews de expertos y conectá directamente con concesionarios. Todo en un solo lugar.',
+  hero_cta_primary_text: 'Explorar autos',
+  hero_cta_primary_link: '/autos',
+  hero_cta_secondary_text: 'Ver reviews',
+  hero_cta_secondary_link: '/reviews',
+};
+
 const Index = () => {
   const { data: allCars = [], isLoading: carsLoading } = useCars();
   const { data: reviews = [] } = useReviews();
   const { data: brands = [] } = useBrands();
+  const { data: siteSettings } = useQuery({
+    queryKey: ['site-settings'],
+    queryFn: getSiteSettings,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const hero = (key: string) =>
+    (siteSettings?.[key] as string) || HERO_DEFAULTS[key] || '';
 
   const featuredCars = allCars.filter((car) => car.is_featured).slice(0, 4);
 
@@ -53,34 +73,32 @@ const Index = () => {
         <div className="container-wide relative py-16 md:py-24 lg:py-32">
           <div className="max-w-3xl">
             <span className="inline-flex items-center px-3 py-1 mb-6 text-xs font-medium rounded-full bg-accent/20 text-accent">
-              La plataforma #1 de autos en Uruguay
+              {hero('hero_badge')}
             </span>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
-              Encontrá tu próximo{' '}
-              <span className="text-gradient">auto 0km</span>
+              {hero('hero_title')}
             </h1>
             <p className="text-lg md:text-xl text-white/80 mb-8 max-w-2xl">
-              Compará precios, leé reviews de expertos y conectá directamente con
-              concesionarios. Todo en un solo lugar.
+              {hero('hero_subtitle')}
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <Link to="/autos">
+              <Link to={hero('hero_cta_primary_link')}>
                 <Button
                   size="lg"
                   className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90 font-semibold"
                 >
                   <Search className="mr-2 h-5 w-5" />
-                  Explorar autos
+                  {hero('hero_cta_primary_text')}
                 </Button>
               </Link>
-              <Link to="/reviews">
+              <Link to={hero('hero_cta_secondary_link')}>
                 <Button
                   size="lg"
                   variant="outline"
                   className="w-full sm:w-auto border-white/30 text-white hover:bg-white/10"
                 >
                   <Star className="mr-2 h-5 w-5" />
-                  Ver reviews
+                  {hero('hero_cta_secondary_text')}
                 </Button>
               </Link>
             </div>
@@ -109,11 +127,17 @@ const Index = () => {
                 to={`/autos?brand=${brand.slug}`}
                 className="flex flex-col items-center justify-center p-4 rounded-xl bg-card border border-border hover:border-primary/30 hover:shadow-card transition-all duration-300"
               >
-                <img
-                  src={brand.logo_url}
-                  alt={brand.name}
-                  className="h-10 w-auto object-contain mb-2 grayscale hover:grayscale-0 transition-all"
-                />
+                {brand.logo_url ? (
+                  <img
+                    src={brand.logo_url}
+                    alt={brand.name}
+                    className="h-10 w-auto object-contain mb-2 grayscale hover:grayscale-0 transition-all"
+                  />
+                ) : (
+                  <div className="h-10 w-10 rounded bg-muted flex items-center justify-center mb-2 text-sm font-bold text-muted-foreground">
+                    {brand.name[0]}
+                  </div>
+                )}
                 <span className="text-xs font-medium text-muted-foreground">
                   {brand.name}
                 </span>

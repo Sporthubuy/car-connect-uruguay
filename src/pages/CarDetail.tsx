@@ -182,11 +182,13 @@ const CarDetail = () => {
             {/* Header */}
             <div className="mb-6">
               <div className="flex items-center gap-2 mb-2">
-                <img
-                  src={car.brand.logo_url}
-                  alt={car.brand.name}
-                  className="h-6 w-auto"
-                />
+                {car.brand.logo_url && (
+                  <img
+                    src={car.brand.logo_url}
+                    alt={car.brand.name}
+                    className="h-6 w-auto"
+                  />
+                )}
                 <Badge variant="secondary">{segmentLabels[car.model.segment]}</Badge>
               </div>
               <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">

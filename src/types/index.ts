@@ -4,9 +4,30 @@ export interface Brand {
   id: string;
   name: string;
   slug: string;
-  logo_url: string;
+  logo_url: string | null;
   country: string;
+  is_active: boolean;
   created_at: string;
+}
+
+export interface BrandContact {
+  id: string;
+  brand_id: string;
+  email: string;
+  department: string | null;
+  is_default: boolean;
+  created_at: string;
+}
+
+export interface BrandAdmin {
+  id: string;
+  brand_id: string;
+  user_id: string;
+  created_at: string;
+  profile?: {
+    email: string;
+    full_name: string;
+  };
 }
 
 export interface Model {

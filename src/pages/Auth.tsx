@@ -25,23 +25,40 @@ const Auth = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data: authData, error } = await supabase.auth.signInWithPassword({
       email: loginEmail,
       password: loginPassword,
     });
 
-    setIsLoading(false);
-
     if (error) {
+      setIsLoading(false);
       toast.error('Error al iniciar sesión', {
         description: error.message === 'Invalid login credentials'
           ? 'Email o contraseña incorrectos'
           : error.message,
       });
-    } else {
-      toast.success('¡Bienvenido de vuelta!');
-      navigate('/perfil');
+      return;
     }
+
+    // Fetch role to redirect accordingly
+    let destination = '/perfil';
+    if (authData.user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', authData.user.id)
+        .single();
+
+      if (profile?.role === 'admin') {
+        destination = '/admin';
+      } else if (profile?.role === 'brand_admin') {
+        destination = '/marca';
+      }
+    }
+
+    setIsLoading(false);
+    toast.success('¡Bienvenido de vuelta!');
+    navigate(destination);
   };
 
   const handleSignup = async (e: React.FormEvent) => {

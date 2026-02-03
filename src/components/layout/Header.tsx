@@ -1,11 +1,10 @@
 import { Link, useLocation } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Car, Menu, X, User, LogIn, Settings } from 'lucide-react';
+import { Car, Menu, X, User, LogIn, Settings, Shield, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/lib/supabase';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
+import { useAuth } from '@/hooks/useAuth';
 
 const navigation = [
   { name: 'Autos 0km', href: '/autos' },
@@ -16,16 +15,8 @@ const navigation = [
 
 export function Header() {
   const [isOpen, setIsOpen] = useState(false);
-  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const { user, isAdmin, isBrandAdmin } = useAuth();
   const location = useLocation();
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
 
   const displayName = user
     ? (user.user_metadata?.full_name || user.email?.split('@')[0] || 'Usuario')
@@ -71,6 +62,22 @@ export function Header() {
         <div className="hidden md:flex items-center gap-3">
           {user ? (
             <>
+              {isAdmin && (
+                <Link to="/admin">
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Shield className="h-4 w-4" />
+                    Admin
+                  </Button>
+                </Link>
+              )}
+              {isBrandAdmin && (
+                <Link to="/marca">
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Building2 className="h-4 w-4" />
+                    Mi Marca
+                  </Button>
+                </Link>
+              )}
               <Link to="/perfil">
                 <Button variant="ghost" size="sm" className="gap-2">
                   <User className="h-4 w-4" />
@@ -131,6 +138,22 @@ export function Header() {
               <div className="flex flex-col gap-2 pt-4 border-t">
                 {user ? (
                   <>
+                    {isAdmin && (
+                      <Link to="/admin" onClick={() => setIsOpen(false)}>
+                        <Button variant="outline" className="w-full justify-start gap-2">
+                          <Shield className="h-4 w-4" />
+                          Admin
+                        </Button>
+                      </Link>
+                    )}
+                    {isBrandAdmin && (
+                      <Link to="/marca" onClick={() => setIsOpen(false)}>
+                        <Button variant="outline" className="w-full justify-start gap-2">
+                          <Building2 className="h-4 w-4" />
+                          Mi Marca
+                        </Button>
+                      </Link>
+                    )}
                     <Link to="/perfil" onClick={() => setIsOpen(false)}>
                       <Button variant="outline" className="w-full justify-start gap-2">
                         <User className="h-4 w-4" />
