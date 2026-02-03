@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BrandAdminLayout } from '@/components/brand-admin/BrandAdminLayout';
-import { listLeadsAdmin, updateLeadStatus } from '@/lib/adminApi';
+import { listLeadsByBrand, updateLeadStatus } from '@/lib/adminApi';
+import { useBrandAdmin } from '@/hooks/useBrandAdmin';
 import { Input } from '@/components/ui/input';
 import { Search, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -19,10 +20,12 @@ export default function BrandAdminLeads() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const queryClient = useQueryClient();
+  const { brandInfo } = useBrandAdmin();
 
   const { data: leads = [], isLoading } = useQuery({
-    queryKey: ['brand-admin', 'leads'],
-    queryFn: listLeadsAdmin,
+    queryKey: ['brand-admin', 'leads', brandInfo?.brand_id],
+    queryFn: () => listLeadsByBrand(brandInfo!.brand_id),
+    enabled: !!brandInfo?.brand_id,
   });
 
   const filtered = leads.filter((l) => {

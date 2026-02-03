@@ -148,7 +148,7 @@ export async function listBrandAdmins(brandId: string): Promise<BrandAdmin[]> {
     .from('brand_admins')
     .select(`
       *,
-      profile:profiles!brand_admins_user_id_fkey(email, full_name)
+      profile:profiles!brand_admins_user_id_profiles_fkey(email, full_name)
     `)
     .eq('brand_id', brandId)
     .order('created_at');
@@ -522,6 +522,51 @@ export async function listLeadsAdmin(): Promise<(Lead & { trim_name?: string; mo
         )
       )
     `)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []).map((row: any) => ({
+    ...row,
+    trim_name: row.trim?.name,
+    model_name: row.trim?.model?.name,
+    brand_name: row.trim?.model?.brand?.name,
+    trim: undefined,
+  }));
+}
+
+export async function listLeadsByBrand(brandId: string): Promise<(Lead & { trim_name?: string; model_name?: string; brand_name?: string })[]> {
+  // Get model IDs for this brand
+  const { data: brandModels } = await supabase
+    .from('models')
+    .select('id')
+    .eq('brand_id', brandId);
+
+  const modelIds = (brandModels ?? []).map((m: any) => m.id);
+  if (modelIds.length === 0) return [];
+
+  // Get trim IDs for those models
+  const { data: brandTrims } = await supabase
+    .from('trims')
+    .select('id')
+    .in('model_id', modelIds);
+
+  const trimIds = (brandTrims ?? []).map((t: any) => t.id);
+  if (trimIds.length === 0) return [];
+
+  // Get leads for those trims
+  const { data, error } = await supabase
+    .from('leads')
+    .select(`
+      *,
+      trim:trims!leads_car_id_fkey(
+        name,
+        model:models!trims_model_id_fkey(
+          name,
+          brand:brands!models_brand_id_fkey(name)
+        )
+      )
+    `)
+    .in('car_id', trimIds)
     .order('created_at', { ascending: false });
 
   if (error) throw error;

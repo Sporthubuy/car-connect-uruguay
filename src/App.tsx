@@ -7,11 +7,14 @@ import Index from "./pages/Index";
 import Cars from "./pages/Cars";
 import CarDetail from "./pages/CarDetail";
 import Reviews from "./pages/Reviews";
+import ReviewDetail from "./pages/ReviewDetail";
 import Community from "./pages/Community";
 import Events from "./pages/Events";
 import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
+import StaticPage from "./pages/StaticPage";
 import NotFound from "./pages/NotFound";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AdminGuard } from "./components/admin/AdminGuard";
 import { BrandAdminGuard } from "./components/brand-admin/BrandAdminGuard";
 // Admin pages
@@ -60,12 +63,13 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <ErrorBoundary>
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/autos" element={<Cars />} />
           <Route path="/autos/:id" element={<CarDetail />} />
           <Route path="/reviews" element={<Reviews />} />
-          <Route path="/reviews/:slug" element={<Reviews />} />
+          <Route path="/reviews/:slug" element={<ReviewDetail />} />
           <Route path="/comunidad" element={<Community />} />
           <Route path="/eventos" element={<Events />} />
           <Route path="/perfil" element={<Profile />} />
@@ -117,9 +121,16 @@ const App = () => (
           <Route path="/marca/beneficios/new" element={<BrandAdminGuard><BrandAdminBenefitForm /></BrandAdminGuard>} />
           <Route path="/marca/beneficios/:benefitId" element={<BrandAdminGuard><BrandAdminBenefitForm /></BrandAdminGuard>} />
           <Route path="/marca/activaciones" element={<BrandAdminGuard><BrandAdminActivations /></BrandAdminGuard>} />
+          {/* Static pages */}
+          <Route path="/terminos" element={<StaticPage pageKey="terminos" />} />
+          <Route path="/privacidad" element={<StaticPage pageKey="privacidad" />} />
+          <Route path="/contacto" element={<StaticPage pageKey="contacto" />} />
+          <Route path="/sobre-nosotros" element={<StaticPage pageKey="sobre-nosotros" />} />
+          <Route path="/noticias" element={<StaticPage pageKey="noticias" />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </ErrorBoundary>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

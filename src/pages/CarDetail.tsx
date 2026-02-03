@@ -1,12 +1,16 @@
-import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Layout } from '@/components/layout/Layout';
 import { LeadModal } from '@/components/cars/LeadModal';
-import { useCarById, useCars } from '@/hooks/useSupabase';
+import { useCarById, useCars, useSavedCarIds } from '@/hooks/useSupabase';
+import { saveCar, unsaveCar } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 import { CarCard } from '@/components/cars/CarCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { toast } from 'sonner';
 import {
   ArrowLeft,
   ChevronLeft,
@@ -21,22 +25,23 @@ import {
   Car,
   Loader2,
 } from 'lucide-react';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 const fuelTypeLabels: Record<string, string> = {
   gasolina: 'Gasolina',
   diesel: 'Diesel',
-  hibrido: 'Híbrido',
-  electrico: 'Eléctrico',
+  hibrido: 'Hibrido',
+  electrico: 'Electrico',
   gnc: 'GNC',
 };
 
 const segmentLabels: Record<string, string> = {
-  sedan: 'Sedán',
+  sedan: 'Sedan',
   hatchback: 'Hatchback',
   suv: 'SUV',
   crossover: 'Crossover',
   pickup: 'Pickup',
-  coupe: 'Coupé',
+  coupe: 'Coupe',
   convertible: 'Convertible',
   wagon: 'Wagon',
   van: 'Van',
@@ -45,10 +50,74 @@ const segmentLabels: Record<string, string> = {
 
 const CarDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: car, isLoading } = useCarById(id || '');
   const { data: allCars = [] } = useCars();
+  const { data: savedCarIds = [], refetch: refetchSavedIds } = useSavedCarIds();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
+  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [savingCar, setSavingCar] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
+  }, []);
+
+  const isSaved = car ? savedCarIds.includes(car.id) : false;
+
+  const handleToggleSave = async () => {
+    if (!user) {
+      navigate('/auth');
+      return;
+    }
+    if (!car) return;
+
+    setSavingCar(true);
+    try {
+      if (isSaved) {
+        await unsaveCar(car.id);
+        toast.success('Auto removido de guardados');
+      } else {
+        await saveCar(car.id);
+        toast.success('Auto guardado');
+      }
+      refetchSavedIds();
+      queryClient.invalidateQueries({ queryKey: ['saved-cars'] });
+    } catch (err: any) {
+      toast.error('Error', { description: err.message });
+    } finally {
+      setSavingCar(false);
+    }
+  };
+
+  const handleShare = async () => {
+    const shareUrl = window.location.href;
+    const shareTitle = car ? `${car.brand.name} ${car.model.name} ${car.name}` : 'Auto en CarConnect';
+    const shareText = car
+      ? `Mira este ${car.brand.name} ${car.model.name} en CarConnect Uruguay`
+      : 'Mira este auto en CarConnect Uruguay';
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: shareTitle,
+          text: shareText,
+          url: shareUrl,
+        });
+      } catch (err) {
+        // User cancelled or error
+      }
+    } else {
+      // Fallback to clipboard
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        toast.success('Link copiado al portapapeles');
+      } catch (err) {
+        toast.error('No se pudo copiar el link');
+      }
+    }
+  };
 
   if (isLoading) {
     return (
@@ -69,7 +138,7 @@ const CarDetail = () => {
             Auto no encontrado
           </h1>
           <p className="text-muted-foreground mb-6">
-            El vehículo que buscás no existe o fue removido.
+            El vehiculo que buscas no existe o fue removido.
           </p>
           <Link to="/autos">
             <Button>Ver todos los autos</Button>
@@ -117,7 +186,7 @@ const CarDetail = () => {
             className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
-            Volver al catálogo
+            Volver al catalogo
           </Link>
         </div>
       </div>
@@ -226,7 +295,7 @@ const CarDetail = () => {
               <div className="flex items-center gap-3 p-3 rounded-lg bg-card border">
                 <Gauge className="h-5 w-5 text-accent" />
                 <div>
-                  <p className="text-xs text-muted-foreground">Transmisión</p>
+                  <p className="text-xs text-muted-foreground">Transmision</p>
                   <p className="font-semibold text-sm">{car.transmission}</p>
                 </div>
               </div>
@@ -248,10 +317,25 @@ const CarDetail = () => {
               >
                 Estoy interesado
               </Button>
-              <Button size="lg" variant="outline" className="px-4">
-                <Heart className="h-5 w-5" />
+              <Button
+                size="lg"
+                variant="outline"
+                className={`px-4 ${isSaved ? 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100' : ''}`}
+                onClick={handleToggleSave}
+                disabled={savingCar}
+              >
+                {savingCar ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Heart className={`h-5 w-5 ${isSaved ? 'fill-current' : ''}`} />
+                )}
               </Button>
-              <Button size="lg" variant="outline" className="px-4">
+              <Button
+                size="lg"
+                variant="outline"
+                className="px-4"
+                onClick={handleShare}
+              >
                 <Share2 className="h-5 w-5" />
               </Button>
             </div>
@@ -290,7 +374,7 @@ const CarDetail = () => {
                   )}
                   {car.top_speed && (
                     <div className="flex justify-between py-2 border-b">
-                      <span className="text-muted-foreground">Velocidad máxima</span>
+                      <span className="text-muted-foreground">Velocidad maxima</span>
                       <span className="font-medium">{car.top_speed} km/h</span>
                     </div>
                   )}
@@ -306,7 +390,7 @@ const CarDetail = () => {
                   </div>
                   {car.trunk_capacity && (
                     <div className="flex justify-between py-2 border-b">
-                      <span className="text-muted-foreground">Baúl</span>
+                      <span className="text-muted-foreground">Baul</span>
                       <span className="font-medium">{car.trunk_capacity} L</span>
                     </div>
                   )}
@@ -333,7 +417,7 @@ const CarDetail = () => {
         {relatedCars.length > 0 && (
           <section className="mt-16">
             <h2 className="text-2xl font-bold text-foreground mb-6">
-              También te puede interesar
+              Tambien te puede interesar
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {relatedCars.map((relatedCar) => (

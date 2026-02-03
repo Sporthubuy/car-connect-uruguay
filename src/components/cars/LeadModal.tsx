@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Car, URUGUAY_DEPARTMENTS } from '@/types';
 import { submitLead } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 import {
   Dialog,
   DialogContent,
@@ -45,6 +47,11 @@ interface LeadModalProps {
 export function LeadModal({ car, isOpen, onClose }: LeadModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [user, setUser] = useState<SupabaseUser | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
+  }, []);
 
   const {
     register,
@@ -68,6 +75,7 @@ export function LeadModal({ car, isOpen, onClose }: LeadModalProps) {
         department: data.department,
         city: data.city,
         message: data.message,
+        user_id: user?.id,
       });
 
       setIsSuccess(true);
