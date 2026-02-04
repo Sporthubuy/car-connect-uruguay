@@ -19,7 +19,7 @@ export function Header() {
   const location = useLocation();
 
   const displayName = user
-    ? (user.user_metadata?.full_name || user.email?.split('@')[0] || 'Usuario')
+    ? (user.fullName || user.email?.split('@')[0] || 'Usuario')
     : null;
 
   const isActive = (href: string) => {

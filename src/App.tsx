@@ -64,72 +64,72 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <ErrorBoundary>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/autos" element={<Cars />} />
-          <Route path="/autos/:id" element={<CarDetail />} />
-          <Route path="/reviews" element={<Reviews />} />
-          <Route path="/reviews/:slug" element={<ReviewDetail />} />
-          <Route path="/comunidad" element={<Community />} />
-          <Route path="/eventos" element={<Events />} />
-          <Route path="/perfil" element={<Profile />} />
-          <Route path="/auth" element={<Auth />} />
-          {/* Admin routes */}
-          <Route path="/admin" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
-          <Route path="/admin/brands" element={<AdminGuard><AdminBrands /></AdminGuard>} />
-          <Route path="/admin/brands/new" element={<AdminGuard><AdminBrandForm /></AdminGuard>} />
-          <Route path="/admin/brands/:brandId" element={<AdminGuard><AdminBrandForm /></AdminGuard>} />
-          <Route path="/admin/brands/:brandId/contacts" element={<AdminGuard><AdminBrandContacts /></AdminGuard>} />
-          <Route path="/admin/brands/:brandId/admins" element={<AdminGuard><AdminBrandAdmins /></AdminGuard>} />
-          <Route path="/admin/models" element={<AdminGuard><AdminModels /></AdminGuard>} />
-          <Route path="/admin/models/new" element={<AdminGuard><AdminModelForm /></AdminGuard>} />
-          <Route path="/admin/models/:modelId" element={<AdminGuard><AdminModelForm /></AdminGuard>} />
-          <Route path="/admin/models/:modelId/trims" element={<AdminGuard><AdminTrims /></AdminGuard>} />
-          <Route path="/admin/models/:modelId/trims/new" element={<AdminGuard><AdminTrimForm /></AdminGuard>} />
-          <Route path="/admin/trims/:trimId" element={<AdminGuard><AdminTrimForm /></AdminGuard>} />
-          <Route path="/admin/leads" element={<AdminGuard><AdminLeads /></AdminGuard>} />
-          <Route path="/admin/events" element={<AdminGuard><AdminEvents /></AdminGuard>} />
-          <Route path="/admin/events/new" element={<AdminGuard><AdminEventForm /></AdminGuard>} />
-          <Route path="/admin/events/:eventId" element={<AdminGuard><AdminEventForm /></AdminGuard>} />
-          <Route path="/admin/benefits" element={<AdminGuard><AdminBenefits /></AdminGuard>} />
-          <Route path="/admin/benefits/new" element={<AdminGuard><AdminBenefitForm /></AdminGuard>} />
-          <Route path="/admin/benefits/:benefitId" element={<AdminGuard><AdminBenefitForm /></AdminGuard>} />
-          <Route path="/admin/activations" element={<AdminGuard><AdminActivations /></AdminGuard>} />
-          <Route path="/admin/users" element={<AdminGuard><AdminUsers /></AdminGuard>} />
-          <Route path="/admin/users/new" element={<AdminGuard><AdminCreateUser /></AdminGuard>} />
-          <Route path="/admin/settings" element={<AdminGuard><AdminSiteSettings /></AdminGuard>} />
-          <Route path="/admin/reviews" element={<AdminGuard><AdminReviews /></AdminGuard>} />
-          <Route path="/admin/comments" element={<AdminGuard><AdminComments /></AdminGuard>} />
-          <Route path="/admin/communities" element={<AdminGuard><AdminCommunities /></AdminGuard>} />
-          <Route path="/admin/communities/new" element={<AdminGuard><AdminCommunityForm /></AdminGuard>} />
-          <Route path="/admin/communities/:communityId" element={<AdminGuard><AdminCommunityForm /></AdminGuard>} />
-          <Route path="/admin/communities/:communityId/posts" element={<AdminGuard><AdminCommunityPosts /></AdminGuard>} />
-          {/* Brand admin routes */}
-          <Route path="/marca" element={<BrandAdminGuard><BrandAdminDashboard /></BrandAdminGuard>} />
-          <Route path="/marca/contactos" element={<BrandAdminGuard><BrandAdminContacts /></BrandAdminGuard>} />
-          <Route path="/marca/modelos" element={<BrandAdminGuard><BrandAdminModels /></BrandAdminGuard>} />
-          <Route path="/marca/modelos/new" element={<BrandAdminGuard><BrandAdminModelForm /></BrandAdminGuard>} />
-          <Route path="/marca/modelos/:modelId" element={<BrandAdminGuard><BrandAdminModelForm /></BrandAdminGuard>} />
-          <Route path="/marca/modelos/:modelId/versiones" element={<BrandAdminGuard><BrandAdminTrims /></BrandAdminGuard>} />
-          <Route path="/marca/modelos/:modelId/versiones/new" element={<BrandAdminGuard><BrandAdminTrimForm /></BrandAdminGuard>} />
-          <Route path="/marca/versiones/:trimId" element={<BrandAdminGuard><BrandAdminTrimForm /></BrandAdminGuard>} />
-          <Route path="/marca/leads" element={<BrandAdminGuard><BrandAdminLeads /></BrandAdminGuard>} />
-          <Route path="/marca/eventos" element={<BrandAdminGuard><BrandAdminEvents /></BrandAdminGuard>} />
-          <Route path="/marca/eventos/new" element={<BrandAdminGuard><BrandAdminEventForm /></BrandAdminGuard>} />
-          <Route path="/marca/eventos/:eventId" element={<BrandAdminGuard><BrandAdminEventForm /></BrandAdminGuard>} />
-          <Route path="/marca/beneficios" element={<BrandAdminGuard><BrandAdminBenefits /></BrandAdminGuard>} />
-          <Route path="/marca/beneficios/new" element={<BrandAdminGuard><BrandAdminBenefitForm /></BrandAdminGuard>} />
-          <Route path="/marca/beneficios/:benefitId" element={<BrandAdminGuard><BrandAdminBenefitForm /></BrandAdminGuard>} />
-          <Route path="/marca/activaciones" element={<BrandAdminGuard><BrandAdminActivations /></BrandAdminGuard>} />
-          {/* Static pages */}
-          <Route path="/terminos" element={<StaticPage pageKey="terminos" />} />
-          <Route path="/privacidad" element={<StaticPage pageKey="privacidad" />} />
-          <Route path="/contacto" element={<StaticPage pageKey="contacto" />} />
-          <Route path="/sobre-nosotros" element={<StaticPage pageKey="sobre-nosotros" />} />
-          <Route path="/noticias" element={<StaticPage pageKey="noticias" />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/autos" element={<Cars />} />
+            <Route path="/autos/:id" element={<CarDetail />} />
+            <Route path="/reviews" element={<Reviews />} />
+            <Route path="/reviews/:slug" element={<ReviewDetail />} />
+            <Route path="/comunidad" element={<Community />} />
+            <Route path="/eventos" element={<Events />} />
+            <Route path="/perfil" element={<Profile />} />
+            <Route path="/auth" element={<Auth />} />
+            {/* Admin routes */}
+            <Route path="/admin" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
+            <Route path="/admin/brands" element={<AdminGuard><AdminBrands /></AdminGuard>} />
+            <Route path="/admin/brands/new" element={<AdminGuard><AdminBrandForm /></AdminGuard>} />
+            <Route path="/admin/brands/:brandId" element={<AdminGuard><AdminBrandForm /></AdminGuard>} />
+            <Route path="/admin/brands/:brandId/contacts" element={<AdminGuard><AdminBrandContacts /></AdminGuard>} />
+            <Route path="/admin/brands/:brandId/admins" element={<AdminGuard><AdminBrandAdmins /></AdminGuard>} />
+            <Route path="/admin/models" element={<AdminGuard><AdminModels /></AdminGuard>} />
+            <Route path="/admin/models/new" element={<AdminGuard><AdminModelForm /></AdminGuard>} />
+            <Route path="/admin/models/:modelId" element={<AdminGuard><AdminModelForm /></AdminGuard>} />
+            <Route path="/admin/models/:modelId/trims" element={<AdminGuard><AdminTrims /></AdminGuard>} />
+            <Route path="/admin/models/:modelId/trims/new" element={<AdminGuard><AdminTrimForm /></AdminGuard>} />
+            <Route path="/admin/trims/:trimId" element={<AdminGuard><AdminTrimForm /></AdminGuard>} />
+            <Route path="/admin/leads" element={<AdminGuard><AdminLeads /></AdminGuard>} />
+            <Route path="/admin/events" element={<AdminGuard><AdminEvents /></AdminGuard>} />
+            <Route path="/admin/events/new" element={<AdminGuard><AdminEventForm /></AdminGuard>} />
+            <Route path="/admin/events/:eventId" element={<AdminGuard><AdminEventForm /></AdminGuard>} />
+            <Route path="/admin/benefits" element={<AdminGuard><AdminBenefits /></AdminGuard>} />
+            <Route path="/admin/benefits/new" element={<AdminGuard><AdminBenefitForm /></AdminGuard>} />
+            <Route path="/admin/benefits/:benefitId" element={<AdminGuard><AdminBenefitForm /></AdminGuard>} />
+            <Route path="/admin/activations" element={<AdminGuard><AdminActivations /></AdminGuard>} />
+            <Route path="/admin/users" element={<AdminGuard><AdminUsers /></AdminGuard>} />
+            <Route path="/admin/users/new" element={<AdminGuard><AdminCreateUser /></AdminGuard>} />
+            <Route path="/admin/settings" element={<AdminGuard><AdminSiteSettings /></AdminGuard>} />
+            <Route path="/admin/reviews" element={<AdminGuard><AdminReviews /></AdminGuard>} />
+            <Route path="/admin/comments" element={<AdminGuard><AdminComments /></AdminGuard>} />
+            <Route path="/admin/communities" element={<AdminGuard><AdminCommunities /></AdminGuard>} />
+            <Route path="/admin/communities/new" element={<AdminGuard><AdminCommunityForm /></AdminGuard>} />
+            <Route path="/admin/communities/:communityId" element={<AdminGuard><AdminCommunityForm /></AdminGuard>} />
+            <Route path="/admin/communities/:communityId/posts" element={<AdminGuard><AdminCommunityPosts /></AdminGuard>} />
+            {/* Brand admin routes */}
+            <Route path="/marca" element={<BrandAdminGuard><BrandAdminDashboard /></BrandAdminGuard>} />
+            <Route path="/marca/contactos" element={<BrandAdminGuard><BrandAdminContacts /></BrandAdminGuard>} />
+            <Route path="/marca/modelos" element={<BrandAdminGuard><BrandAdminModels /></BrandAdminGuard>} />
+            <Route path="/marca/modelos/new" element={<BrandAdminGuard><BrandAdminModelForm /></BrandAdminGuard>} />
+            <Route path="/marca/modelos/:modelId" element={<BrandAdminGuard><BrandAdminModelForm /></BrandAdminGuard>} />
+            <Route path="/marca/modelos/:modelId/versiones" element={<BrandAdminGuard><BrandAdminTrims /></BrandAdminGuard>} />
+            <Route path="/marca/modelos/:modelId/versiones/new" element={<BrandAdminGuard><BrandAdminTrimForm /></BrandAdminGuard>} />
+            <Route path="/marca/versiones/:trimId" element={<BrandAdminGuard><BrandAdminTrimForm /></BrandAdminGuard>} />
+            <Route path="/marca/leads" element={<BrandAdminGuard><BrandAdminLeads /></BrandAdminGuard>} />
+            <Route path="/marca/eventos" element={<BrandAdminGuard><BrandAdminEvents /></BrandAdminGuard>} />
+            <Route path="/marca/eventos/new" element={<BrandAdminGuard><BrandAdminEventForm /></BrandAdminGuard>} />
+            <Route path="/marca/eventos/:eventId" element={<BrandAdminGuard><BrandAdminEventForm /></BrandAdminGuard>} />
+            <Route path="/marca/beneficios" element={<BrandAdminGuard><BrandAdminBenefits /></BrandAdminGuard>} />
+            <Route path="/marca/beneficios/new" element={<BrandAdminGuard><BrandAdminBenefitForm /></BrandAdminGuard>} />
+            <Route path="/marca/beneficios/:benefitId" element={<BrandAdminGuard><BrandAdminBenefitForm /></BrandAdminGuard>} />
+            <Route path="/marca/activaciones" element={<BrandAdminGuard><BrandAdminActivations /></BrandAdminGuard>} />
+            {/* Static pages */}
+            <Route path="/terminos" element={<StaticPage pageKey="terminos" />} />
+            <Route path="/privacidad" element={<StaticPage pageKey="privacidad" />} />
+            <Route path="/contacto" element={<StaticPage pageKey="contacto" />} />
+            <Route path="/sobre-nosotros" element={<StaticPage pageKey="sobre-nosotros" />} />
+            <Route path="/noticias" element={<StaticPage pageKey="noticias" />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
         </ErrorBoundary>
       </BrowserRouter>
     </TooltipProvider>

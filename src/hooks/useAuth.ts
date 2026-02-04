@@ -1,77 +1,73 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
+import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 import type { UserRole } from '@/types';
+import type { Id } from '../../convex/_generated/dataModel';
+import { useEffect } from 'react';
+
+interface ConvexUser {
+  _id: Id<'users'>;
+  clerkId: string;
+  email: string;
+  fullName: string;
+  avatarUrl?: string;
+  phone?: string;
+  department?: string;
+  city?: string;
+  address?: string;
+  birthDate?: string;
+  gender?: string;
+  role: UserRole;
+}
 
 interface AuthState {
-  user: SupabaseUser | null;
+  user: ConvexUser | null;
+  clerkUser: ReturnType<typeof useUser>['user'];
   role: UserRole | null;
   loading: boolean;
   isAdmin: boolean;
   isBrandAdmin: boolean;
+  isAuthenticated: boolean;
+  signOut: () => Promise<void>;
 }
 
 export function useAuth(): AuthState {
-  const [user, setUser] = useState<SupabaseUser | null>(null);
-  const [role, setRole] = useState<UserRole | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user: clerkUser, isLoaded } = useUser();
+  const { signOut } = useClerkAuth();
 
+  // Get or create Convex user
+  const convexUser = useQuery(
+    api.auth.getCurrentUser,
+    clerkUser?.id ? { clerkId: clerkUser.id } : 'skip'
+  );
+
+  const upsertUser = useMutation(api.auth.upsertUser);
+
+  // Sync Clerk user to Convex
   useEffect(() => {
-    let cancelled = false;
-
-    async function loadUser() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (cancelled) return;
-
-      setUser(user);
-
-      if (user) {
-        const { data } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-
-        if (!cancelled) {
-          setRole((data?.role as UserRole) ?? 'user');
-        }
-      }
-
-      if (!cancelled) setLoading(false);
+    if (clerkUser && isLoaded) {
+      upsertUser({
+        clerkId: clerkUser.id,
+        email: clerkUser.primaryEmailAddress?.emailAddress || '',
+        fullName: clerkUser.fullName || clerkUser.firstName || 'Usuario',
+        avatarUrl: clerkUser.imageUrl,
+      });
     }
+  }, [clerkUser?.id, isLoaded]);
 
-    loadUser();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const newUser = session?.user ?? null;
-      setUser(newUser);
-
-      if (newUser) {
-        const { data } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', newUser.id)
-          .single();
-
-        setRole((data?.role as UserRole) ?? 'user');
-      } else {
-        setRole(null);
-      }
-
-      setLoading(false);
-    });
-
-    return () => {
-      cancelled = true;
-      subscription.unsubscribe();
-    };
-  }, []);
+  const user = convexUser as ConvexUser | null;
+  const role = (convexUser?.role as UserRole) || null;
 
   return {
     user,
+    clerkUser,
     role,
-    loading,
+    loading: !isLoaded || (!!clerkUser && convexUser === undefined),
     isAdmin: role === 'admin',
     isBrandAdmin: role === 'brand_admin',
+    isAuthenticated: !!clerkUser,
+    signOut: async () => {
+      await signOut();
+    },
   };
 }
