@@ -1,5 +1,6 @@
+import { useQuery } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { CarFilters, CarSegment, FuelType, SortOption } from '@/types';
-import { useBrands, useModels } from '@/hooks/useSupabase';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {
@@ -50,8 +51,8 @@ export function CarFiltersComponent({
   sortBy,
   onSortChange,
 }: CarFiltersProps) {
-  const { data: brands = [] } = useBrands();
-  const { data: models = [] } = useModels();
+  const brands = useQuery(api.cars.listBrands, {}) || [];
+  const models = useQuery(api.cars.listModels, {}) || [];
 
   const updateFilter = (key: keyof CarFilters, value: any) => {
     onFiltersChange({ ...filters, [key]: value || undefined });
@@ -67,7 +68,7 @@ export function CarFiltersComponent({
 
   const filteredModels = filters.brand
     ? models.filter(
-        (m) => brands.find((b) => b.slug === filters.brand)?.id === m.brand_id
+        (m) => brands.find((b) => b.slug === filters.brand)?._id === m.brandId
       )
     : models;
 
@@ -131,7 +132,7 @@ export function CarFiltersComponent({
           <SelectContent>
             <SelectItem value="">Todas las marcas</SelectItem>
             {brands.map((brand) => (
-              <SelectItem key={brand.id} value={brand.slug}>
+              <SelectItem key={brand._id} value={brand.slug}>
                 {brand.name}
               </SelectItem>
             ))}
@@ -153,7 +154,7 @@ export function CarFiltersComponent({
           <SelectContent>
             <SelectItem value="">Todos los modelos</SelectItem>
             {filteredModels.map((model) => (
-              <SelectItem key={model.id} value={model.slug}>
+              <SelectItem key={model._id} value={model.slug}>
                 {model.name}
               </SelectItem>
             ))}

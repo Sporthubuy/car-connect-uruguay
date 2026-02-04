@@ -1,10 +1,27 @@
 import { Link } from 'react-router-dom';
-import { Car } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { Fuel, Gauge, Users, Zap } from 'lucide-react';
 
 interface CarCardProps {
-  car: Car;
+  car: {
+    _id: string;
+    name: string;
+    year: number;
+    priceUsd: number;
+    horsepower: number;
+    fuelType: string;
+    transmission: string;
+    seats: number;
+    isFeatured: boolean;
+    images: string[];
+    brand: {
+      name: string;
+    };
+    model: {
+      name: string;
+      segment: string;
+    };
+  };
 }
 
 const fuelTypeLabels: Record<string, string> = {
@@ -39,7 +56,7 @@ export function CarCard({ car }: CarCardProps) {
   };
 
   return (
-    <Link to={`/autos/${car.id}`} className="group">
+    <Link to={`/autos/${car._id}`} className="group">
       <article className="car-card">
         {/* Image */}
         <div className="relative aspect-[16/10] overflow-hidden">
@@ -49,10 +66,10 @@ export function CarCard({ car }: CarCardProps) {
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-          
+
           {/* Badges */}
           <div className="absolute top-3 left-3 flex gap-2">
-            {car.is_featured && (
+            {car.isFeatured && (
               <Badge className="bg-accent text-accent-foreground border-0">
                 Destacado
               </Badge>
@@ -65,7 +82,7 @@ export function CarCard({ car }: CarCardProps) {
           {/* Price overlay */}
           <div className="absolute bottom-3 left-3 right-3">
             <p className="text-2xl font-bold text-white">
-              {formatPrice(car.price_usd)}
+              {formatPrice(car.priceUsd)}
             </p>
           </div>
         </div>
@@ -91,7 +108,7 @@ export function CarCard({ car }: CarCardProps) {
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Fuel className="h-4 w-4 text-accent" />
-              <span>{fuelTypeLabels[car.fuel_type]}</span>
+              <span>{fuelTypeLabels[car.fuelType]}</span>
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Gauge className="h-4 w-4 text-accent" />

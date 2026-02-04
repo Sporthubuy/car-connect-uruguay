@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { listLeadsAdmin, updateLeadStatus } from '@/lib/adminApi';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Search, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { LeadStatus } from '@/types';
+import type { Id } from '../../../convex/_generated/dataModel';
+
+type LeadStatus = 'new' | 'contacted' | 'qualified' | 'converted' | 'lost';
 
 const STATUS_OPTIONS: { value: LeadStatus; label: string }[] = [
   { value: 'new', label: 'Nuevo' },
@@ -29,12 +31,11 @@ const statusVariant = (s: LeadStatus) => {
 export default function AdminLeads() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const queryClient = useQueryClient();
 
-  const { data: leads = [], isLoading } = useQuery({
-    queryKey: ['admin', 'leads'],
-    queryFn: listLeadsAdmin,
-  });
+  const leads = useQuery(api.leads.listLeads) || [];
+  const isLoading = leads === undefined;
+
+  const updateStatusMutation = useMutation(api.leads.updateLeadStatus);
 
   const filtered = leads.filter((l) => {
     const matchesSearch =
@@ -44,11 +45,10 @@ export default function AdminLeads() {
     return matchesSearch && matchesStatus;
   });
 
-  const handleStatusChange = async (id: string, status: LeadStatus) => {
+  const handleStatusChange = async (leadId: Id<'leads'>, status: LeadStatus) => {
     try {
-      await updateLeadStatus(id, status);
+      await updateStatusMutation({ leadId, status });
       toast.success('Estado actualizado');
-      queryClient.invalidateQueries({ queryKey: ['admin', 'leads'] });
     } catch (err: any) {
       toast.error('Error', { description: err.message });
     }
@@ -84,43 +84,59 @@ export default function AdminLeads() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
-          {search || statusFilter ? 'No se encontraron leads' : 'No hay leads registrados'}
+          {search || statusFilter ? 'No se encontraron leads' : 'No hay leads'}
         </div>
       ) : (
-        <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="rounded-lg border bg-card overflow-hidden">
           <table className="w-full">
-            <thead>
-              <tr className="border-b bg-muted/50">
-                <th className="text-left text-sm font-medium text-muted-foreground px-4 py-3">Nombre</th>
-                <th className="text-left text-sm font-medium text-muted-foreground px-4 py-3 hidden sm:table-cell">Email</th>
-                <th className="text-left text-sm font-medium text-muted-foreground px-4 py-3 hidden md:table-cell">Teléfono</th>
-                <th className="text-left text-sm font-medium text-muted-foreground px-4 py-3 hidden lg:table-cell">Auto</th>
-                <th className="text-left text-sm font-medium text-muted-foreground px-4 py-3">Estado</th>
-                <th className="text-left text-sm font-medium text-muted-foreground px-4 py-3 hidden md:table-cell">Fecha</th>
+            <thead className="bg-muted/50">
+              <tr>
+                <th className="text-left p-4 font-medium">Contacto</th>
+                <th className="text-left p-4 font-medium hidden md:table-cell">Auto</th>
+                <th className="text-left p-4 font-medium hidden lg:table-cell">Ubicación</th>
+                <th className="text-center p-4 font-medium">Estado</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((lead) => (
-                <tr key={lead.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3 font-medium text-foreground">{lead.name}</td>
-                  <td className="px-4 py-3 text-sm text-muted-foreground hidden sm:table-cell">{lead.email}</td>
-                  <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">{lead.phone}</td>
-                  <td className="px-4 py-3 text-sm text-muted-foreground hidden lg:table-cell">
-                    {[lead.brand_name, lead.model_name, lead.trim_name].filter(Boolean).join(' ') || '—'}
+                <tr key={lead._id} className="border-t">
+                  <td className="p-4">
+                    <div>
+                      <p className="font-medium">{lead.name}</p>
+                      <p className="text-sm text-muted-foreground">{lead.email}</p>
+                      <p className="text-sm text-muted-foreground">{lead.phone}</p>
+                    </div>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="p-4 hidden md:table-cell">
+                    {lead.car ? (
+                      <div>
+                        <p className="font-medium">
+                          {lead.car.brand?.name} {lead.car.model?.name}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {lead.car.name} - USD {lead.car.priceUsd?.toLocaleString()}
+                        </p>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
+                  </td>
+                  <td className="p-4 hidden lg:table-cell">
+                    <p className="text-sm">{lead.department}</p>
+                    {lead.city && (
+                      <p className="text-sm text-muted-foreground">{lead.city}</p>
+                    )}
+                  </td>
+                  <td className="p-4 text-center">
                     <select
-                      className="h-8 rounded-md border border-input bg-background px-2 py-1 text-xs"
+                      className="h-8 rounded-md border border-input bg-background px-2 text-sm"
                       value={lead.status}
-                      onChange={(e) => handleStatusChange(lead.id, e.target.value as LeadStatus)}
+                      onChange={(e) => handleStatusChange(lead._id, e.target.value as LeadStatus)}
                     >
                       {STATUS_OPTIONS.map((s) => (
                         <option key={s.value} value={s.value}>{s.label}</option>
                       ))}
                     </select>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">
-                    {new Date(lead.created_at).toLocaleDateString('es-UY')}
                   </td>
                 </tr>
               ))}

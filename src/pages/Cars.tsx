@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
+import { useQuery } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 import { Layout } from '@/components/layout/Layout';
 import { CarCard } from '@/components/cars/CarCard';
 import { CarFiltersComponent } from '@/components/cars/CarFilters';
-import { useCars, useBrands, useModels } from '@/hooks/useSupabase';
 import { CarFilters, SortOption } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -13,9 +14,10 @@ const Cars = () => {
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
-  const { data: allCars = [], isLoading } = useCars();
-  const { data: brands = [] } = useBrands();
-  const { data: models = [] } = useModels();
+  const allCars = useQuery(api.cars.listCarsWithDetails) || [];
+  const brands = useQuery(api.cars.listBrands, {}) || [];
+  const models = useQuery(api.cars.listModels, {}) || [];
+  const isLoading = allCars === undefined;
 
   const filteredCars = useMemo(() => {
     let result = [...allCars];
@@ -24,14 +26,14 @@ const Cars = () => {
     if (filters.brand) {
       const brand = brands.find((b) => b.slug === filters.brand);
       if (brand) {
-        result = result.filter((car) => car.brand.id === brand.id);
+        result = result.filter((car) => car.brand._id === brand._id);
       }
     }
 
     if (filters.model) {
       const model = models.find((m) => m.slug === filters.model);
       if (model) {
-        result = result.filter((car) => car.model.id === model.id);
+        result = result.filter((car) => car.model._id === model._id);
       }
     }
 
@@ -40,30 +42,30 @@ const Cars = () => {
     }
 
     if (filters.fuelType) {
-      result = result.filter((car) => car.fuel_type === filters.fuelType);
+      result = result.filter((car) => car.fuelType === filters.fuelType);
     }
 
     if (filters.priceMin) {
-      result = result.filter((car) => car.price_usd >= filters.priceMin!);
+      result = result.filter((car) => car.priceUsd >= filters.priceMin!);
     }
 
     if (filters.priceMax) {
-      result = result.filter((car) => car.price_usd <= filters.priceMax!);
+      result = result.filter((car) => car.priceUsd <= filters.priceMax!);
     }
 
     // Apply sorting
     switch (sortBy) {
       case 'price_asc':
-        result.sort((a, b) => a.price_usd - b.price_usd);
+        result.sort((a, b) => a.priceUsd - b.priceUsd);
         break;
       case 'price_desc':
-        result.sort((a, b) => b.price_usd - a.price_usd);
+        result.sort((a, b) => b.priceUsd - a.priceUsd);
         break;
       case 'newest':
         result.sort((a, b) => b.year - a.year);
         break;
       case 'popular':
-        result.sort((a, b) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0));
+        result.sort((a, b) => (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0));
         break;
     }
 
@@ -156,7 +158,7 @@ const Cars = () => {
             ) : filteredCars.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                 {filteredCars.map((car) => (
-                  <CarCard key={car.id} car={car} />
+                  <CarCard key={car._id} car={car} />
                 ))}
               </div>
             ) : (

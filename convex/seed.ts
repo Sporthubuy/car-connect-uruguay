@@ -658,3 +658,497 @@ La Ranger Limited V6 es la pickup mas avanzada tecnologicamente disponible en Ur
     return { message: "Reviews seeded successfully!" };
   },
 });
+
+// Seed all additional content (comments, community posts, benefits, etc.)
+export const seedAllContent = mutation({
+  args: {},
+  handler: async (ctx) => {
+    // Get admin user
+    const adminUser = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", "hola@sporthub.com.uy"))
+      .first();
+
+    if (!adminUser) {
+      return { message: "Admin user not found. Please login first." };
+    }
+
+    // Get existing data
+    const brands = await ctx.db.query("brands").collect();
+    const reviews = await ctx.db.query("reviewPosts").collect();
+    const communities = await ctx.db.query("communities").collect();
+    const existingComments = await ctx.db.query("comments").first();
+    const existingPosts = await ctx.db.query("communityPosts").first();
+
+    // ============ COMMENTS ON REVIEWS ============
+    if (!existingComments && reviews.length > 0) {
+      // Comments for first review (Corolla)
+      const corollaReview = reviews.find(r => r.slug === "toyota-corolla-2024-review");
+      if (corollaReview) {
+        await ctx.db.insert("comments", {
+          postId: corollaReview._id,
+          authorId: adminUser._id,
+          content: "Excelente review! Tengo el Corolla hace 6 meses y puedo confirmar todo lo que dicen. El consumo es realmente muy bueno.",
+          isApproved: true,
+        });
+        await ctx.db.insert("comments", {
+          postId: corollaReview._id,
+          authorId: adminUser._id,
+          content: "Que tal es el servicio post-venta de Toyota? Estoy entre el Corolla y el Civic.",
+          isApproved: true,
+        });
+        await ctx.db.insert("comments", {
+          postId: corollaReview._id,
+          authorId: adminUser._id,
+          content: "La transmision CVT se siente rara al principio pero te acostumbras rapido. Muy suave para ciudad.",
+          isApproved: true,
+        });
+      }
+
+      // Comments for Golf GTI review
+      const gtiReview = reviews.find(r => r.slug === "vw-golf-gti-2024-review");
+      if (gtiReview) {
+        await ctx.db.insert("comments", {
+          postId: gtiReview._id,
+          authorId: adminUser._id,
+          content: "El GTI es un sueno! Lo probe en el concesionario y es adictivo. Ahorrando para comprarlo.",
+          isApproved: true,
+        });
+        await ctx.db.insert("comments", {
+          postId: gtiReview._id,
+          authorId: adminUser._id,
+          content: "Alguien sabe como es el tema de los repuestos? Es muy caro mantenerlo?",
+          isApproved: true,
+        });
+      }
+
+      // Comments for Hilux review
+      const hiluxReview = reviews.find(r => r.slug === "toyota-hilux-srv-2024-review");
+      if (hiluxReview) {
+        await ctx.db.insert("comments", {
+          postId: hiluxReview._id,
+          authorId: adminUser._id,
+          content: "La Hilux es indestructible. Tengo una del 2018 con 200.000 km y anda perfecta.",
+          isApproved: true,
+        });
+        await ctx.db.insert("comments", {
+          postId: hiluxReview._id,
+          authorId: adminUser._id,
+          content: "El unico problema es estacionar en Montevideo jaja. Pero para salir al campo no hay nada mejor.",
+          isApproved: true,
+        });
+        await ctx.db.insert("comments", {
+          postId: hiluxReview._id,
+          authorId: adminUser._id,
+          content: "Comparada con la Ranger V6, cual recomiendan? El precio es similar.",
+          isApproved: true,
+        });
+        await ctx.db.insert("comments", {
+          postId: hiluxReview._id,
+          authorId: adminUser._id,
+          content: "La SRV viene con camara 360? O solo la SRX?",
+          isApproved: false, // Pending approval
+        });
+      }
+
+      // Comments for Ranger review
+      const rangerReview = reviews.find(r => r.slug === "ford-ranger-limited-v6-2024-review");
+      if (rangerReview) {
+        await ctx.db.insert("comments", {
+          postId: rangerReview._id,
+          authorId: adminUser._id,
+          content: "El motor V6 es una locura. La probe y tiene una respuesta impresionante.",
+          isApproved: true,
+        });
+        await ctx.db.insert("comments", {
+          postId: rangerReview._id,
+          authorId: adminUser._id,
+          content: "La pantalla SYNC 4A es la mejor que he visto en una pickup. Muy intuitiva.",
+          isApproved: true,
+        });
+      }
+    }
+
+    // ============ COMMUNITY POSTS ============
+    if (!existingPosts && communities.length > 0) {
+      const toyotaCommunity = communities.find(c => c.slug === "toyota-owners");
+      const vwCommunity = communities.find(c => c.slug === "vw-club");
+      const offroad = communities.find(c => c.slug === "4x4-uruguay");
+
+      if (toyotaCommunity) {
+        await ctx.db.insert("communityPosts", {
+          communityId: toyotaCommunity._id,
+          authorId: adminUser._id,
+          title: "Tips para el primer service de mi Corolla",
+          content: "Hola a todos! Acabo de hacer los 10.000 km con mi Corolla 2024. Queria compartir mi experiencia con el primer service:\n\n1. El cambio de aceite salio $3.500 en el service oficial\n2. Revisaron frenos, suspension y filtros sin costo adicional\n3. Me dieron auto de cortesia mientras esperaba\n\nAlguno tiene tips para el proximo service? Que cosas conviene hacer en el taller oficial vs mecanico de confianza?",
+          upvotes: 24,
+          downvotes: 1,
+          commentCount: 8,
+        });
+        await ctx.db.insert("communityPosts", {
+          communityId: toyotaCommunity._id,
+          authorId: adminUser._id,
+          title: "Juntada Toyota Owners - Rambla Montevideo",
+          content: "Buenas! Estamos organizando una juntada para el proximo sabado 15 de marzo en la Rambla de Pocitos.\n\nHora: 10:00 AM\nPunto de encuentro: Frente al Club Nautico\n\nTodos los Toyota son bienvenidos! La idea es tomar unos mates, conocernos y sacar fotos de los autos.\n\nConfirmen si vienen!",
+          upvotes: 45,
+          downvotes: 0,
+          commentCount: 23,
+        });
+        await ctx.db.insert("communityPosts", {
+          communityId: toyotaCommunity._id,
+          authorId: adminUser._id,
+          title: "Problema con ruido en suspension - Corolla 2023",
+          content: "Gente, tengo un ruido molesto en la suspension delantera cuando paso por pozos. Es como un 'toc toc' metalico.\n\nEl auto tiene 25.000 km y esta en garantia todavia. Alguien tuvo este problema?\n\nYa lo lleve al service y dicen que es 'normal' pero no me convence.",
+          upvotes: 12,
+          downvotes: 0,
+          commentCount: 15,
+        });
+      }
+
+      if (vwCommunity) {
+        await ctx.db.insert("communityPosts", {
+          communityId: vwCommunity._id,
+          authorId: adminUser._id,
+          title: "Mi experiencia con el Golf GTI despues de 1 ano",
+          content: "Cumpli un ano con mi Golf GTI y quiero compartir mi experiencia:\n\n**Lo bueno:**\n- El manejo es increible, no me canso de manejarlo\n- Consumo en ruta: 6.5 L/100km (mejor de lo esperado)\n- La caja DSG es perfecta\n\n**Lo no tan bueno:**\n- El consumo en ciudad sube a 10-11 L/100km\n- Los services son caros (aprox $8.000 cada 15.000 km)\n- La suspension es dura para las calles de Montevideo\n\nEn resumen: 100% recomendado si te gusta manejar!",
+          upvotes: 67,
+          downvotes: 3,
+          commentCount: 31,
+        });
+        await ctx.db.insert("communityPosts", {
+          communityId: vwCommunity._id,
+          authorId: adminUser._id,
+          title: "Donde comprar accesorios originales VW?",
+          content: "Hola! Estoy buscando las alfombras originales para mi Tiguan y el deflector de capot.\n\nEn el concesionario me piden un ojo de la cara. Alguien conoce otro lugar donde vendan repuestos originales a mejor precio?\n\nGracias!",
+          upvotes: 8,
+          downvotes: 0,
+          commentCount: 12,
+        });
+        await ctx.db.insert("communityPosts", {
+          communityId: vwCommunity._id,
+          authorId: adminUser._id,
+          title: "Comparativa: Tiguan vs T-Cross vs Nivus",
+          content: "Estoy por comprar mi primer VW y estoy entre estos tres modelos. Mi uso seria 80% ciudad y 20% viajes.\n\nPresupuesto: hasta 45.000 USD\n\nQue me recomiendan? Que version de cada uno seria la mejor relacion precio/equipamiento?\n\nAgradezco cualquier consejo!",
+          upvotes: 19,
+          downvotes: 1,
+          commentCount: 27,
+        });
+      }
+
+      if (offroad) {
+        await ctx.db.insert("communityPosts", {
+          communityId: offroad._id,
+          authorId: adminUser._id,
+          title: "Recorrido 4x4 por Rocha - Fotos y tips",
+          content: "El finde pasado hicimos un recorrido por los caminos de Rocha con un grupo de 8 camionetas.\n\nRecorrido: La Paloma → Cabo Polonio → Punta del Diablo\n\nTips importantes:\n- Bajar las ruedas a 20 PSI para la arena\n- Llevar soga y kit de recuperacion\n- El tramo a Cabo Polonio es exigente, solo 4x4 con reductora\n- Llevar agua y comida, no hay servicios en el camino\n\nSubo fotos en los comentarios!",
+          upvotes: 89,
+          downvotes: 2,
+          commentCount: 45,
+        });
+        await ctx.db.insert("communityPosts", {
+          communityId: offroad._id,
+          authorId: adminUser._id,
+          title: "Hilux vs Ranger vs Amarok - Cual es mejor offroad?",
+          content: "Debate eterno pero quiero opiniones actualizadas.\n\nTengo una Hilux 2019 y estoy pensando en cambiarla. Me tienta la Ranger V6 por potencia y la Amarok V6 por confort.\n\nAlguien que haya tenido las tres me puede dar su opinion honesta?\n\nUso: 50% ruta, 30% campo, 20% ciudad",
+          upvotes: 34,
+          downvotes: 5,
+          commentCount: 52,
+        });
+        await ctx.db.insert("communityPosts", {
+          communityId: offroad._id,
+          authorId: adminUser._id,
+          title: "Proxima salida grupal - Sierra de las Animas",
+          content: "Estamos armando una salida a la Sierra de las Animas para el 22 de marzo.\n\nDificultad: Media-Alta\nDuracion: Dia completo\nRequisitos: 4x4 con reductora, neumaticos AT minimo\n\nIncluye almuerzo en un campo de la zona.\n\nCupos limitados a 12 vehiculos. Confirmar por privado.",
+          upvotes: 56,
+          downvotes: 0,
+          commentCount: 38,
+        });
+      }
+
+      // Update member counts
+      if (toyotaCommunity) {
+        await ctx.db.patch(toyotaCommunity._id, { memberCount: 156 });
+      }
+      if (vwCommunity) {
+        await ctx.db.patch(vwCommunity._id, { memberCount: 89 });
+      }
+      if (offroad) {
+        await ctx.db.patch(offroad._id, { memberCount: 234 });
+      }
+    }
+
+    // ============ BENEFITS ============
+    const existingBenefits = await ctx.db.query("benefits").first();
+    if (!existingBenefits && brands.length > 0) {
+      const toyota = brands.find(b => b.slug === "toyota");
+      const vw = brands.find(b => b.slug === "volkswagen");
+      const chevrolet = brands.find(b => b.slug === "chevrolet");
+      const ford = brands.find(b => b.slug === "ford");
+
+      if (toyota) {
+        await ctx.db.insert("benefits", {
+          brandId: toyota._id,
+          title: "15% OFF en Service Oficial",
+          description: "Descuento exclusivo en todos los services programados para propietarios registrados en CarConnect.",
+          terms: "Valido para vehiculos Toyota 0km comprados en 2023-2024. No acumulable con otras promociones. Presentar codigo de la app.",
+          validFrom: "2024-01-01",
+          validUntil: "2024-12-31",
+          isActive: true,
+        });
+        await ctx.db.insert("benefits", {
+          brandId: toyota._id,
+          title: "Revision pre-viaje gratuita",
+          description: "Antes de tus vacaciones, llevá tu Toyota a una revisión completa sin cargo.",
+          terms: "Valido una vez por año. Incluye revision de 25 puntos. No incluye repuestos ni mano de obra adicional.",
+          validFrom: "2024-01-01",
+          validUntil: "2024-12-31",
+          isActive: true,
+        });
+        await ctx.db.insert("benefits", {
+          brandId: toyota._id,
+          title: "Accesorios con 20% OFF",
+          description: "Descuento en accesorios originales Toyota: barras de techo, cobertores, alfombras y más.",
+          terms: "Valido en compras mayores a $5.000. Stock sujeto a disponibilidad.",
+          validFrom: "2024-03-01",
+          validUntil: "2024-06-30",
+          isActive: true,
+        });
+      }
+
+      if (vw) {
+        await ctx.db.insert("benefits", {
+          brandId: vw._id,
+          title: "Plan de Mantenimiento Extendido",
+          description: "Extiende la garantía de tu Volkswagen por 2 años adicionales con 50% de descuento.",
+          terms: "Aplicable a vehiculos con menos de 60.000 km. Debe contratarse antes del vencimiento de garantía original.",
+          validFrom: "2024-01-01",
+          validUntil: "2024-12-31",
+          isActive: true,
+        });
+        await ctx.db.insert("benefits", {
+          brandId: vw._id,
+          title: "Upgrade de Llantas GTI",
+          description: "Cambia tus llantas estándar por las llantas deportivas GTI con precio especial para miembros.",
+          terms: "Solo para Golf, Polo y Virtus. Instalacion incluida. Stock limitado.",
+          validFrom: "2024-02-01",
+          validUntil: "2024-05-31",
+          isActive: true,
+        });
+      }
+
+      if (chevrolet) {
+        await ctx.db.insert("benefits", {
+          brandId: chevrolet._id,
+          title: "Wi-Fi Gratis por 1 Año",
+          description: "Activa el Wi-Fi de tu Chevrolet con datos ilimitados gratis durante 12 meses.",
+          terms: "Valido para Onix, Tracker y Equinox 2023-2024. Requiere activacion en concesionario oficial.",
+          validFrom: "2024-01-01",
+          validUntil: "2024-12-31",
+          isActive: true,
+        });
+        await ctx.db.insert("benefits", {
+          brandId: chevrolet._id,
+          title: "Cambio de Aceite Bonificado",
+          description: "Tu primer cambio de aceite gratis al registrar tu Chevrolet en CarConnect.",
+          terms: "Valido para vehiculos nuevos. Un cambio por vehiculo. Incluye aceite y filtro original.",
+          validFrom: "2024-01-01",
+          validUntil: "2024-12-31",
+          isActive: true,
+        });
+      }
+
+      if (ford) {
+        await ctx.db.insert("benefits", {
+          brandId: ford._id,
+          title: "Accesorios Ranger con 25% OFF",
+          description: "Equipá tu Ranger con accesorios originales: barra antivuelco, cubre caja, estribos y más.",
+          terms: "Valido para Ranger 2023-2024. Instalacion incluida en seleccion de productos.",
+          validFrom: "2024-01-01",
+          validUntil: "2024-06-30",
+          isActive: true,
+        });
+        await ctx.db.insert("benefits", {
+          brandId: ford._id,
+          title: "Curso de Manejo 4x4",
+          description: "Aprende a sacar el máximo provecho de tu Ranger o Bronco Sport en nuestro curso offroad.",
+          terms: "Cupos limitados. Inscripcion previa requerida. Incluye almuerzo y certificado.",
+          validFrom: "2024-03-01",
+          validUntil: "2024-12-31",
+          isActive: true,
+        });
+      }
+    }
+
+    // ============ MORE EVENTS ============
+    const eventCount = (await ctx.db.query("events").collect()).length;
+    if (eventCount <= 2 && brands.length > 0) {
+      const toyota = brands.find(b => b.slug === "toyota");
+      const vw = brands.find(b => b.slug === "volkswagen");
+      const chevrolet = brands.find(b => b.slug === "chevrolet");
+      const ford = brands.find(b => b.slug === "ford");
+
+      if (chevrolet) {
+        await ctx.db.insert("events", {
+          brandId: chevrolet._id,
+          title: "Lanzamiento Chevrolet Equinox EV",
+          slug: "lanzamiento-equinox-ev",
+          description: "Se el primero en conocer el nuevo Equinox 100% electrico. Test drive exclusivo para miembros CarConnect.",
+          coverImage: "https://images.unsplash.com/photo-1593941707882-a5bba14938c7?w=800",
+          location: "Chevrolet Center, Av. Italia 4567, Montevideo",
+          eventDate: "2024-04-10",
+          eventTime: "18:30",
+          isPublic: true,
+          requiresVerification: false,
+          maxAttendees: 100,
+        });
+      }
+
+      if (ford) {
+        await ctx.db.insert("events", {
+          brandId: ford._id,
+          title: "Ford Ranger Experience - Offroad Day",
+          slug: "ranger-experience-offroad",
+          description: "Un dia completo de aventura offroad con instructores profesionales. Aprende tecnicas de manejo 4x4 en terrenos extremos.",
+          coverImage: "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?w=800",
+          location: "Estancia La Paz, Ruta 5 Km 120, Durazno",
+          eventDate: "2024-04-20",
+          eventTime: "08:00",
+          isPublic: false,
+          requiresVerification: true,
+          maxAttendees: 30,
+        });
+      }
+
+      // General events (no brand)
+      await ctx.db.insert("events", {
+        title: "Expo Auto Uruguay 2024",
+        slug: "expo-auto-uruguay-2024",
+        description: "La exposicion automotriz mas grande del pais. Todas las marcas, todos los modelos, en un solo lugar.",
+        coverImage: "https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=800",
+        location: "Antel Arena, Montevideo",
+        eventDate: "2024-05-15",
+        eventTime: "10:00",
+        isPublic: true,
+        requiresVerification: false,
+        maxAttendees: 5000,
+      });
+
+      await ctx.db.insert("events", {
+        title: "Curso de Manejo Defensivo",
+        slug: "curso-manejo-defensivo",
+        description: "Aprende tecnicas de manejo seguro con instructores certificados. Ideal para conductores nuevos y experimentados.",
+        coverImage: "https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?w=800",
+        location: "Autodromo Victor Borrat Fabini, El Pinar",
+        eventDate: "2024-04-05",
+        eventTime: "09:00",
+        isPublic: true,
+        requiresVerification: false,
+        maxAttendees: 40,
+      });
+
+      if (toyota) {
+        await ctx.db.insert("events", {
+          brandId: toyota._id,
+          title: "Toyota GR Experience",
+          slug: "toyota-gr-experience",
+          description: "Vivi la experiencia Gazoo Racing. Proba los modelos deportivos de Toyota: GR Corolla, GR86 y Supra.",
+          coverImage: "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=800",
+          location: "Autodromo de Rivera",
+          eventDate: "2024-05-25",
+          eventTime: "10:00",
+          isPublic: false,
+          requiresVerification: true,
+          maxAttendees: 50,
+        });
+      }
+
+      if (vw) {
+        await ctx.db.insert("events", {
+          brandId: vw._id,
+          title: "VW Track Day - Punta del Este",
+          slug: "vw-track-day-pde",
+          description: "Lleva tu Golf GTI o cualquier VW al circuito y disfruta de una jornada de pista libre.",
+          coverImage: "https://images.unsplash.com/photo-1609521263047-f8f205293f24?w=800",
+          location: "Autodromo Eduardo Cabrera, Punta del Este",
+          eventDate: "2024-06-08",
+          eventTime: "08:30",
+          isPublic: false,
+          requiresVerification: true,
+          maxAttendees: 25,
+        });
+      }
+    }
+
+    // ============ SAMPLE LEADS ============
+    const existingLeads = await ctx.db.query("leads").first();
+    const trims = await ctx.db.query("trims").collect();
+    if (!existingLeads && trims.length > 0) {
+      const sampleLeads = [
+        { name: "Juan Rodriguez", email: "juan.rodriguez@email.com", phone: "099 123 456", department: "Montevideo", city: "Pocitos", status: "new" as const },
+        { name: "Maria Gonzalez", email: "maria.g@email.com", phone: "098 765 432", department: "Canelones", city: "Ciudad de la Costa", status: "contacted" as const },
+        { name: "Carlos Perez", email: "carlos.p@email.com", phone: "097 111 222", department: "Maldonado", city: "Punta del Este", status: "qualified" as const },
+        { name: "Ana Martinez", email: "ana.m@email.com", phone: "096 333 444", department: "Montevideo", city: "Carrasco", status: "converted" as const },
+        { name: "Pedro Silva", email: "pedro.s@email.com", phone: "095 555 666", department: "Colonia", city: "Colonia del Sacramento", status: "new" as const },
+        { name: "Laura Fernandez", email: "laura.f@email.com", phone: "094 777 888", department: "Montevideo", city: "Centro", status: "contacted" as const },
+        { name: "Diego Lopez", email: "diego.l@email.com", phone: "093 999 000", department: "Rocha", city: "La Paloma", status: "new" as const },
+        { name: "Sofia Diaz", email: "sofia.d@email.com", phone: "092 111 333", department: "Montevideo", city: "Punta Carretas", status: "qualified" as const },
+      ];
+
+      for (let i = 0; i < sampleLeads.length; i++) {
+        const lead = sampleLeads[i];
+        const trim = trims[i % trims.length];
+        await ctx.db.insert("leads", {
+          carId: trim._id,
+          name: lead.name,
+          email: lead.email,
+          phone: lead.phone,
+          department: lead.department,
+          city: lead.city,
+          message: `Hola, estoy interesado en el ${trim.name}. Me gustaria recibir mas informacion sobre precio y disponibilidad.`,
+          status: lead.status,
+        });
+      }
+    }
+
+    // ============ UPDATE SITE SETTINGS ============
+    const heroImageSetting = await ctx.db
+      .query("siteSettings")
+      .withIndex("by_key", (q) => q.eq("key", "hero_image"))
+      .first();
+
+    if (!heroImageSetting) {
+      await ctx.db.insert("siteSettings", {
+        key: "hero_image",
+        value: "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=1920",
+      });
+      await ctx.db.insert("siteSettings", {
+        key: "hero_cta_text",
+        value: "Explorar autos",
+      });
+      await ctx.db.insert("siteSettings", {
+        key: "hero_cta_link",
+        value: "/autos",
+      });
+      await ctx.db.insert("siteSettings", {
+        key: "featured_brands_title",
+        value: "Marcas destacadas",
+      });
+      await ctx.db.insert("siteSettings", {
+        key: "footer_text",
+        value: "CarConnect Uruguay - Tu plataforma para encontrar el auto perfecto",
+      });
+    }
+
+    return {
+      message: "All content seeded successfully!",
+      seeded: {
+        comments: !existingComments,
+        communityPosts: !existingPosts,
+        benefits: !existingBenefits,
+        events: eventCount <= 2,
+        leads: !existingLeads,
+        settings: !heroImageSetting,
+      }
+    };
+  },
+});

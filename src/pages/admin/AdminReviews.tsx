@@ -1,46 +1,57 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { listReviewsAdmin, updateReviewPublish, deleteReview } from '@/lib/adminApi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Search, Eye, EyeOff, Trash2, Loader2, Star } from 'lucide-react';
+import type { Id } from '../../../convex/_generated/dataModel';
 
 export default function AdminReviews() {
-  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'published' | 'draft'>('all');
 
-  const { data: reviews = [], isLoading } = useQuery({
-    queryKey: ['admin', 'reviews'],
-    queryFn: listReviewsAdmin,
-  });
+  const reviews = useQuery(api.reviews.listReviews) || [];
+  const isLoading = reviews === undefined;
 
-  const publishMutation = useMutation({
-    mutationFn: ({ id, publish }: { id: string; publish: boolean }) =>
-      updateReviewPublish(id, publish ? new Date().toISOString() : null),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'reviews'] });
-      toast.success('Review actualizada');
-    },
-    onError: (err: any) => toast.error(err.message),
-  });
+  const publishMutation = useMutation(api.reviews.publishReview);
+  const unpublishMutation = useMutation(api.reviews.unpublishReview);
+  const deleteMutation = useMutation(api.reviews.deleteReview);
 
-  const deleteMutation = useMutation({
-    mutationFn: deleteReview,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'reviews'] });
+  const handlePublish = async (reviewId: Id<'reviewPosts'>) => {
+    try {
+      await publishMutation({ reviewId });
+      toast.success('Review publicada');
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  const handleUnpublish = async (reviewId: Id<'reviewPosts'>) => {
+    try {
+      await unpublishMutation({ reviewId });
+      toast.success('Review despublicada');
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  const handleDelete = async (reviewId: Id<'reviewPosts'>) => {
+    if (!confirm('¿Eliminar esta review?')) return;
+    try {
+      await deleteMutation({ reviewId });
       toast.success('Review eliminada');
-    },
-    onError: (err: any) => toast.error(err.message),
-  });
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
 
   const filtered = reviews
     .filter((r) => {
-      if (filter === 'published') return !!r.published_at;
-      if (filter === 'draft') return !r.published_at;
+      if (filter === 'published') return !!r.publishedAt;
+      if (filter === 'draft') return !r.publishedAt;
       return true;
     })
     .filter((r) => r.title.toLowerCase().includes(search.toLowerCase()));
@@ -80,74 +91,79 @@ export default function AdminReviews() {
           {search ? 'No se encontraron reviews' : 'No hay reviews'}
         </div>
       ) : (
-        <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="rounded-lg border bg-card overflow-hidden">
           <table className="w-full">
-            <thead>
-              <tr className="border-b bg-muted/50">
-                <th className="text-left text-sm font-medium text-muted-foreground px-4 py-3">Titulo</th>
-                <th className="text-left text-sm font-medium text-muted-foreground px-4 py-3 hidden md:table-cell">Autor</th>
-                <th className="text-left text-sm font-medium text-muted-foreground px-4 py-3 hidden sm:table-cell">Rating</th>
-                <th className="text-left text-sm font-medium text-muted-foreground px-4 py-3 hidden lg:table-cell">Vistas</th>
-                <th className="text-left text-sm font-medium text-muted-foreground px-4 py-3">Estado</th>
-                <th className="text-right text-sm font-medium text-muted-foreground px-4 py-3">Acciones</th>
+            <thead className="bg-muted/50">
+              <tr>
+                <th className="text-left p-4 font-medium">Review</th>
+                <th className="text-left p-4 font-medium hidden md:table-cell">Autor</th>
+                <th className="text-center p-4 font-medium">Rating</th>
+                <th className="text-center p-4 font-medium hidden sm:table-cell">Vistas</th>
+                <th className="text-center p-4 font-medium">Estado</th>
+                <th className="text-right p-4 font-medium">Acciones</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((review) => (
-                <tr key={review.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3">
-                    <span className="font-medium text-foreground line-clamp-1">{review.title}</span>
-                    <span className="text-xs text-muted-foreground block">
-                      {new Date(review.created_at).toLocaleDateString('es-UY')}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">
-                    {review.author_name ?? review.author_email ?? '-'}
-                  </td>
-                  <td className="px-4 py-3 hidden sm:table-cell">
-                    <div className="flex items-center gap-1 text-accent">
-                      <Star className="h-3.5 w-3.5 fill-current" />
-                      <span className="text-sm font-medium">{review.rating}</span>
+                <tr key={review._id} className="border-t">
+                  <td className="p-4">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={review.coverImage}
+                        alt={review.title}
+                        className="w-16 h-10 rounded object-cover hidden sm:block"
+                      />
+                      <div>
+                        <p className="font-medium line-clamp-1">{review.title}</p>
+                        <p className="text-sm text-muted-foreground line-clamp-1">
+                          {review.excerpt}
+                        </p>
+                      </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-sm text-muted-foreground hidden lg:table-cell">
-                    {review.views.toLocaleString()}
+                  <td className="p-4 hidden md:table-cell">
+                    <span className="text-sm">{review.author?.fullName || 'Desconocido'}</span>
                   </td>
-                  <td className="px-4 py-3">
-                    <Badge variant={review.published_at ? 'default' : 'secondary'}>
-                      {review.published_at ? 'Publicada' : 'Borrador'}
+                  <td className="p-4 text-center">
+                    <div className="flex items-center justify-center gap-1 text-accent">
+                      <Star className="h-4 w-4 fill-current" />
+                      <span>{review.rating}</span>
+                    </div>
+                  </td>
+                  <td className="p-4 text-center hidden sm:table-cell">
+                    {review.views?.toLocaleString()}
+                  </td>
+                  <td className="p-4 text-center">
+                    <Badge variant={review.publishedAt ? 'default' : 'secondary'}>
+                      {review.publishedAt ? 'Publicada' : 'Borrador'}
                     </Badge>
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        title={review.published_at ? 'Despublicar' : 'Publicar'}
-                        onClick={() =>
-                          publishMutation.mutate({
-                            id: review.id,
-                            publish: !review.published_at,
-                          })
-                        }
-                      >
-                        {review.published_at ? (
+                  <td className="p-4">
+                    <div className="flex items-center justify-end gap-2">
+                      {review.publishedAt ? (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleUnpublish(review._id)}
+                          title="Despublicar"
+                        >
                           <EyeOff className="h-4 w-4" />
-                        ) : (
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handlePublish(review._id)}
+                          title="Publicar"
+                        >
                           <Eye className="h-4 w-4" />
-                        )}
-                      </Button>
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        title="Eliminar"
-                        onClick={() => {
-                          if (confirm('Eliminar esta review?')) {
-                            deleteMutation.mutate(review.id);
-                          }
-                        }}
+                        onClick={() => handleDelete(review._id)}
+                        className="text-destructive hover:text-destructive"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
