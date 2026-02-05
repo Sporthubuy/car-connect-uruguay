@@ -33,6 +33,12 @@ export default defineSchema({
     logoUrl: v.optional(v.string()),
     country: v.string(),
     isActive: v.boolean(),
+    description: v.optional(v.string()),
+    website: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    socialFacebook: v.optional(v.string()),
+    socialInstagram: v.optional(v.string()),
+    socialTwitter: v.optional(v.string()),
   })
     .index("by_slug", ["slug"])
     .index("by_active", ["isActive"]),

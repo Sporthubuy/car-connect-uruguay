@@ -150,6 +150,98 @@ export const getBrandAdminStats = query({
   },
 });
 
+// ============ ADMIN TRENDS ============
+
+function getWeekRanges(numWeeks: number): { start: number; end: number; label: string }[] {
+  const ranges: { start: number; end: number; label: string }[] = [];
+  const now = Date.now();
+  const DAY = 86400000;
+  for (let i = numWeeks - 1; i >= 0; i--) {
+    const end = now - i * 7 * DAY;
+    const start = end - 7 * DAY;
+    const d = new Date(start);
+    const label = `${d.getDate()}/${d.getMonth() + 1}`;
+    ranges.push({ start, end, label });
+  }
+  return ranges;
+}
+
+function getMonthRanges(numMonths: number): { start: number; end: number; label: string }[] {
+  const ranges: { start: number; end: number; label: string }[] = [];
+  const now = new Date();
+  for (let i = numMonths - 1; i >= 0; i--) {
+    const start = new Date(now.getFullYear(), now.getMonth() - i, 1).getTime();
+    const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1).getTime();
+    const label = new Date(start).toLocaleString("es-UY", { month: "short" });
+    ranges.push({ start, end, label });
+  }
+  return ranges;
+}
+
+export const getAdminTrends = query({
+  args: {},
+  handler: async (ctx) => {
+    const weekRanges = getWeekRanges(8);
+    const monthRanges = getMonthRanges(6);
+
+    const leads = await ctx.db.query("leads").collect();
+    const users = await ctx.db.query("users").collect();
+    const activations = await ctx.db.query("vehicleActivations").collect();
+
+    const leadsPerWeek = weekRanges.map((r) => ({
+      label: r.label,
+      count: leads.filter((l) => l._creationTime >= r.start && l._creationTime < r.end).length,
+    }));
+
+    const usersPerWeek = weekRanges.map((r) => ({
+      label: r.label,
+      count: users.filter((u) => u._creationTime >= r.start && u._creationTime < r.end).length,
+    }));
+
+    const activationsPerMonth = monthRanges.map((r) => ({
+      label: r.label,
+      count: activations.filter((a) => a._creationTime >= r.start && a._creationTime < r.end).length,
+    }));
+
+    return { leadsPerWeek, usersPerWeek, activationsPerMonth };
+  },
+});
+
+export const getBrandAdminTrends = query({
+  args: { brandId: v.id("brands") },
+  handler: async (ctx, args) => {
+    const weekRanges = getWeekRanges(8);
+    const monthRanges = getMonthRanges(6);
+
+    // Get brand trim IDs for lead filtering
+    const models = await ctx.db
+      .query("models")
+      .withIndex("by_brand", (q) => q.eq("brandId", args.brandId))
+      .collect();
+    const modelIds = models.map((m) => m._id);
+    const allTrims = await ctx.db.query("trims").collect();
+    const trimIds = allTrims.filter((t) => modelIds.includes(t.modelId)).map((t) => t._id);
+
+    const allLeads = await ctx.db.query("leads").collect();
+    const brandLeads = allLeads.filter((l) => trimIds.includes(l.carId));
+
+    const leadsPerWeek = weekRanges.map((r) => ({
+      label: r.label,
+      count: brandLeads.filter((l) => l._creationTime >= r.start && l._creationTime < r.end).length,
+    }));
+
+    const allActivations = await ctx.db.query("vehicleActivations").collect();
+    const brandActivations = allActivations.filter((a) => a.brandId === args.brandId);
+
+    const activationsPerMonth = monthRanges.map((r) => ({
+      label: r.label,
+      count: brandActivations.filter((a) => a._creationTime >= r.start && a._creationTime < r.end).length,
+    }));
+
+    return { leadsPerWeek, activationsPerMonth };
+  },
+});
+
 // ============ BRAND CONTACTS ============
 
 export const listBrandContacts = query({

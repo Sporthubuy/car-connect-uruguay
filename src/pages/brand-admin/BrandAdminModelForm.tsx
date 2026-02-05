@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { BrandAdminLayout } from '@/components/brand-admin/BrandAdminLayout';
 import { useBrandAdmin } from '@/hooks/useBrandAdmin';
-import { getModel, createModel, updateModel } from '@/lib/adminApi';
+import { useBrandAuthorization } from '@/hooks/useBrandAuthorization';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import type { CarSegment } from '@/types';
+import type { Id } from '../../../convex/_generated/dataModel';
 
 const SEGMENTS: CarSegment[] = ['sedan', 'hatchback', 'suv', 'crossover', 'pickup', 'coupe', 'convertible', 'wagon', 'van', 'sports'];
 
@@ -17,35 +19,46 @@ export default function BrandAdminModelForm() {
   const { modelId } = useParams<{ modelId: string }>();
   const isEdit = modelId && modelId !== 'new';
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { brandInfo } = useBrandAdmin();
+  const { validateModelOwnership } = useBrandAuthorization();
 
   const [saving, setSaving] = useState(false);
+  const [ownershipVerified, setOwnershipVerified] = useState(!isEdit);
   const [form, setForm] = useState({
     name: '',
     slug: '',
     segment: 'sedan' as CarSegment,
-    year_start: new Date().getFullYear(),
-    year_end: '' as string | number,
+    yearStart: new Date().getFullYear(),
+    yearEnd: '' as string | number,
   });
 
-  const { data: model, isLoading } = useQuery({
-    queryKey: ['brand-admin', 'model', modelId],
-    queryFn: () => getModel(modelId!),
-    enabled: !!isEdit,
-  });
+  const model = useQuery(
+    api.cars.getModel,
+    isEdit ? { modelId: modelId as Id<"models"> } : 'skip'
+  );
+
+  const createModelMutation = useMutation(api.cars.createModel);
+  const updateModelMutation = useMutation(api.cars.updateModel);
+
+  const isLoading = isEdit && model === undefined;
 
   useEffect(() => {
-    if (model) {
+    if (model && brandInfo?.brand_id) {
+      if (model.brandId !== (brandInfo.brand_id as Id<"brands">)) {
+        toast.error('No tienes permiso para editar este modelo');
+        navigate('/marca/modelos');
+        return;
+      }
+      setOwnershipVerified(true);
       setForm({
         name: model.name,
         slug: model.slug,
-        segment: model.segment,
-        year_start: model.year_start,
-        year_end: model.year_end ?? '',
+        segment: model.segment as CarSegment,
+        yearStart: model.yearStart,
+        yearEnd: model.yearEnd ?? '',
       });
     }
-  }, [model]);
+  }, [model, brandInfo, navigate]);
 
   const generateSlug = (name: string) =>
     name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -67,24 +80,28 @@ export default function BrandAdminModelForm() {
 
     setSaving(true);
     try {
-      const payload = {
-        brand_id: brandInfo.brand_id,
-        name: form.name.trim(),
-        slug: form.slug.trim(),
-        segment: form.segment,
-        year_start: Number(form.year_start),
-        year_end: form.year_end ? Number(form.year_end) : null,
-      };
-
       if (isEdit) {
-        await updateModel(modelId!, payload);
+        await updateModelMutation({
+          modelId: modelId as Id<"models">,
+          name: form.name.trim(),
+          slug: form.slug.trim(),
+          segment: form.segment,
+          yearStart: Number(form.yearStart),
+          yearEnd: form.yearEnd ? Number(form.yearEnd) : undefined,
+        });
         toast.success('Modelo actualizado');
       } else {
-        await createModel(payload);
+        await createModelMutation({
+          brandId: brandInfo.brand_id as Id<"brands">,
+          name: form.name.trim(),
+          slug: form.slug.trim(),
+          segment: form.segment,
+          yearStart: Number(form.yearStart),
+          yearEnd: form.yearEnd ? Number(form.yearEnd) : undefined,
+        });
         toast.success('Modelo creado');
       }
 
-      queryClient.invalidateQueries({ queryKey: ['brand-admin', 'models'] });
       navigate('/marca/modelos');
     } catch (err: any) {
       toast.error('Error', { description: err.message });
@@ -93,7 +110,7 @@ export default function BrandAdminModelForm() {
     }
   };
 
-  if (isEdit && isLoading) {
+  if (isEdit && (isLoading || !ownershipVerified)) {
     return (
       <BrandAdminLayout title="Editar modelo">
         <div className="flex items-center justify-center py-16">
@@ -144,12 +161,12 @@ export default function BrandAdminModelForm() {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="year_start">Año inicio *</Label>
-              <Input id="year_start" type="number" value={form.year_start} onChange={(e) => setForm((p) => ({ ...p, year_start: Number(e.target.value) }))} required />
+              <Label htmlFor="yearStart">Año inicio *</Label>
+              <Input id="yearStart" type="number" value={form.yearStart} onChange={(e) => setForm((p) => ({ ...p, yearStart: Number(e.target.value) }))} required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="year_end">Año fin</Label>
-              <Input id="year_end" type="number" value={form.year_end} onChange={(e) => setForm((p) => ({ ...p, year_end: e.target.value }))} placeholder="En producción" />
+              <Label htmlFor="yearEnd">Año fin</Label>
+              <Input id="yearEnd" type="number" value={form.yearEnd} onChange={(e) => setForm((p) => ({ ...p, yearEnd: e.target.value }))} placeholder="En producción" />
             </div>
           </div>
 

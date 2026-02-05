@@ -1,21 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { BrandAdminLayout } from '@/components/brand-admin/BrandAdminLayout';
 import { useBrandAdmin } from '@/hooks/useBrandAdmin';
-import { getBenefit, createBenefit, updateBenefit } from '@/lib/adminApi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { ArrowLeft, Loader2 } from 'lucide-react';
+import type { Id } from '../../../convex/_generated/dataModel';
 
 export default function BrandAdminBenefitForm() {
   const { benefitId } = useParams<{ benefitId: string }>();
   const isEdit = benefitId && benefitId !== 'new';
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { brandInfo } = useBrandAdmin();
 
   const [saving, setSaving] = useState(false);
@@ -23,16 +23,20 @@ export default function BrandAdminBenefitForm() {
     title: '',
     description: '',
     terms: '',
-    valid_from: '',
-    valid_until: '',
-    is_active: true,
+    validFrom: '',
+    validUntil: '',
+    isActive: true,
   });
 
-  const { data: benefit, isLoading } = useQuery({
-    queryKey: ['brand-admin', 'benefit', benefitId],
-    queryFn: () => getBenefit(benefitId!),
-    enabled: !!isEdit,
-  });
+  const benefit = useQuery(
+    api.activations.getBenefit,
+    isEdit ? { benefitId: benefitId as Id<"benefits"> } : 'skip'
+  );
+
+  const createBenefitMutation = useMutation(api.activations.createBenefit);
+  const updateBenefitMutation = useMutation(api.activations.updateBenefit);
+
+  const isLoading = isEdit && benefit === undefined;
 
   useEffect(() => {
     if (benefit) {
@@ -40,16 +44,16 @@ export default function BrandAdminBenefitForm() {
         title: benefit.title,
         description: benefit.description,
         terms: benefit.terms ?? '',
-        valid_from: benefit.valid_from,
-        valid_until: benefit.valid_until,
-        is_active: benefit.is_active,
+        validFrom: benefit.validFrom,
+        validUntil: benefit.validUntil,
+        isActive: benefit.isActive,
       });
     }
   }, [benefit]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.title.trim() || !form.valid_from || !form.valid_until) {
+    if (!form.title.trim() || !form.validFrom || !form.validUntil) {
       toast.error('Título y fechas de vigencia son obligatorios');
       return;
     }
@@ -61,26 +65,30 @@ export default function BrandAdminBenefitForm() {
 
     setSaving(true);
     try {
-      const payload = {
-        brand_id: brandInfo.brand_id,
-        title: form.title.trim(),
-        description: form.description.trim(),
-        terms: form.terms.trim() || null,
-        valid_from: form.valid_from,
-        valid_until: form.valid_until,
-        is_active: form.is_active,
-      };
-
       if (isEdit) {
-        const { brand_id: _, ...updates } = payload;
-        await updateBenefit(benefitId!, updates);
+        await updateBenefitMutation({
+          benefitId: benefitId as Id<"benefits">,
+          title: form.title.trim(),
+          description: form.description.trim(),
+          terms: form.terms.trim() || undefined,
+          validFrom: form.validFrom,
+          validUntil: form.validUntil,
+          isActive: form.isActive,
+        });
         toast.success('Beneficio actualizado');
       } else {
-        await createBenefit(payload);
+        await createBenefitMutation({
+          brandId: brandInfo.brand_id as Id<"brands">,
+          title: form.title.trim(),
+          description: form.description.trim(),
+          terms: form.terms.trim() || undefined,
+          validFrom: form.validFrom,
+          validUntil: form.validUntil,
+          isActive: form.isActive,
+        });
         toast.success('Beneficio creado');
       }
 
-      queryClient.invalidateQueries({ queryKey: ['brand-admin', 'benefits'] });
       navigate('/marca/beneficios');
     } catch (err: any) {
       toast.error('Error', { description: err.message });
@@ -142,12 +150,12 @@ export default function BrandAdminBenefitForm() {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="valid_from">Válido desde *</Label>
-              <Input id="valid_from" type="date" value={form.valid_from} onChange={(e) => setForm((p) => ({ ...p, valid_from: e.target.value }))} required />
+              <Label htmlFor="validFrom">Válido desde *</Label>
+              <Input id="validFrom" type="date" value={form.validFrom} onChange={(e) => setForm((p) => ({ ...p, validFrom: e.target.value }))} required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="valid_until">Válido hasta *</Label>
-              <Input id="valid_until" type="date" value={form.valid_until} onChange={(e) => setForm((p) => ({ ...p, valid_until: e.target.value }))} required />
+              <Label htmlFor="validUntil">Válido hasta *</Label>
+              <Input id="validUntil" type="date" value={form.validUntil} onChange={(e) => setForm((p) => ({ ...p, validUntil: e.target.value }))} required />
             </div>
           </div>
 
@@ -156,7 +164,7 @@ export default function BrandAdminBenefitForm() {
               <Label>Activo</Label>
               <p className="text-xs text-muted-foreground">Los beneficios inactivos no se muestran</p>
             </div>
-            <Switch checked={form.is_active} onCheckedChange={(checked) => setForm((p) => ({ ...p, is_active: checked }))} />
+            <Switch checked={form.isActive} onCheckedChange={(checked) => setForm((p) => ({ ...p, isActive: checked }))} />
           </div>
 
           <div className="flex gap-3 pt-2">

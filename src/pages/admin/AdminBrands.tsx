@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { listBrandsAdmin } from '@/lib/adminApi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -10,12 +10,10 @@ import { Plus, Search, Pencil, Mail, Users, Loader2 } from 'lucide-react';
 
 export default function AdminBrands() {
   const [search, setSearch] = useState('');
-  const { data: brands = [], isLoading } = useQuery({
-    queryKey: ['admin', 'brands'],
-    queryFn: listBrandsAdmin,
-  });
+  const brands = useQuery(api.cars.listBrands);
+  const isLoading = brands === undefined;
 
-  const filtered = brands.filter((b) =>
+  const filtered = (brands ?? []).filter((b) =>
     b.name.toLowerCase().includes(search.toLowerCase()),
   );
 
@@ -71,12 +69,12 @@ export default function AdminBrands() {
             </thead>
             <tbody>
               {filtered.map((brand) => (
-                <tr key={brand.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                <tr key={brand._id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      {brand.logo_url ? (
+                      {brand.logoUrl ? (
                         <img
-                          src={brand.logo_url}
+                          src={brand.logoUrl}
                           alt={brand.name}
                           className="h-8 w-8 rounded object-contain bg-white"
                         />
@@ -95,23 +93,23 @@ export default function AdminBrands() {
                     {brand.country}
                   </td>
                   <td className="px-4 py-3">
-                    <Badge variant={brand.is_active ? 'default' : 'secondary'}>
-                      {brand.is_active ? 'Activa' : 'Inactiva'}
+                    <Badge variant={brand.isActive ? 'default' : 'secondary'}>
+                      {brand.isActive ? 'Activa' : 'Inactiva'}
                     </Badge>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
-                      <Link to={`/admin/brands/${brand.id}`}>
+                      <Link to={`/admin/brands/${brand._id}`}>
                         <Button variant="ghost" size="icon" className="h-8 w-8" title="Editar">
                           <Pencil className="h-4 w-4" />
                         </Button>
                       </Link>
-                      <Link to={`/admin/brands/${brand.id}/contacts`}>
+                      <Link to={`/admin/brands/${brand._id}/contacts`}>
                         <Button variant="ghost" size="icon" className="h-8 w-8" title="Contactos">
                           <Mail className="h-4 w-4" />
                         </Button>
                       </Link>
-                      <Link to={`/admin/brands/${brand.id}/admins`}>
+                      <Link to={`/admin/brands/${brand._id}/admins`}>
                         <Button variant="ghost" size="icon" className="h-8 w-8" title="Admins">
                           <Users className="h-4 w-4" />
                         </Button>

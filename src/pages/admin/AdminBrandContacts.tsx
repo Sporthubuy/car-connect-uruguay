@@ -1,14 +1,9 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
+import type { Id } from '../../../convex/_generated/dataModel';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import {
-  getBrand,
-  listBrandContacts,
-  addBrandContact,
-  removeBrandContact,
-  setDefaultContact,
-} from '@/lib/adminApi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,43 +13,40 @@ import { ArrowLeft, Plus, Trash2, Star, Loader2 } from 'lucide-react';
 
 export default function AdminBrandContacts() {
   const { brandId } = useParams<{ brandId: string }>();
-  const queryClient = useQueryClient();
 
   const [newEmail, setNewEmail] = useState('');
   const [newDept, setNewDept] = useState('');
   const [adding, setAdding] = useState(false);
 
-  const { data: brand } = useQuery({
-    queryKey: ['admin', 'brand', brandId],
-    queryFn: () => getBrand(brandId!),
-    enabled: !!brandId,
-  });
+  const brand = useQuery(
+    api.cars.getBrand,
+    brandId ? { brandId: brandId as Id<"brands"> } : 'skip',
+  );
 
-  const { data: contacts = [], isLoading } = useQuery({
-    queryKey: ['admin', 'brand-contacts', brandId],
-    queryFn: () => listBrandContacts(brandId!),
-    enabled: !!brandId,
-  });
+  const contacts = useQuery(
+    api.settings.listBrandContacts,
+    brandId ? { brandId: brandId as Id<"brands"> } : 'skip',
+  );
+  const isLoading = contacts === undefined;
 
-  const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ['admin', 'brand-contacts', brandId] });
-  };
+  const createBrandContact = useMutation(api.settings.createBrandContact);
+  const deleteBrandContact = useMutation(api.settings.deleteBrandContact);
+  const updateBrandContact = useMutation(api.settings.updateBrandContact);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newEmail.trim()) return;
+    if (!newEmail.trim() || !brandId) return;
 
     setAdding(true);
     try {
-      await addBrandContact({
-        brand_id: brandId!,
+      await createBrandContact({
+        brandId: brandId as Id<"brands">,
         email: newEmail.trim(),
-        department: newDept.trim() || null,
-        is_default: contacts.length === 0,
+        department: newDept.trim() || undefined,
+        isDefault: (contacts ?? []).length === 0,
       });
       setNewEmail('');
       setNewDept('');
-      invalidate();
       toast.success('Contacto agregado');
     } catch (err: any) {
       toast.error('Error', {
@@ -67,20 +59,18 @@ export default function AdminBrandContacts() {
     }
   };
 
-  const handleRemove = async (id: string) => {
+  const handleRemove = async (id: Id<"brandContacts">) => {
     try {
-      await removeBrandContact(id);
-      invalidate();
+      await deleteBrandContact({ contactId: id });
       toast.success('Contacto eliminado');
     } catch (err: any) {
       toast.error('Error', { description: err.message });
     }
   };
 
-  const handleSetDefault = async (contactId: string) => {
+  const handleSetDefault = async (contactId: Id<"brandContacts">) => {
     try {
-      await setDefaultContact(brandId!, contactId);
-      invalidate();
+      await updateBrandContact({ contactId, isDefault: true });
       toast.success('Contacto predeterminado actualizado');
     } catch (err: any) {
       toast.error('Error', { description: err.message });
@@ -140,7 +130,7 @@ export default function AdminBrandContacts() {
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      ) : contacts.length === 0 ? (
+      ) : (contacts ?? []).length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           No hay contactos configurados para esta marca
         </div>
@@ -161,12 +151,12 @@ export default function AdminBrandContacts() {
               </tr>
             </thead>
             <tbody>
-              {contacts.map((contact) => (
-                <tr key={contact.id} className="border-b last:border-0 hover:bg-muted/30">
+              {(contacts ?? []).map((contact) => (
+                <tr key={contact._id} className="border-b last:border-0 hover:bg-muted/30">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-foreground">{contact.email}</span>
-                      {contact.is_default && (
+                      {contact.isDefault && (
                         <Badge variant="secondary" className="text-xs">
                           Default
                         </Badge>
@@ -174,17 +164,17 @@ export default function AdminBrandContacts() {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-sm text-muted-foreground hidden sm:table-cell">
-                    {contact.department ?? '—'}
+                    {contact.department ?? '\u2014'}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
-                      {!contact.is_default && (
+                      {!contact.isDefault && (
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
                           title="Marcar como default"
-                          onClick={() => handleSetDefault(contact.id)}
+                          onClick={() => handleSetDefault(contact._id)}
                         >
                           <Star className="h-4 w-4" />
                         </Button>
@@ -194,7 +184,7 @@ export default function AdminBrandContacts() {
                         size="icon"
                         className="h-8 w-8 text-destructive hover:text-destructive"
                         title="Eliminar"
-                        onClick={() => handleRemove(contact.id)}
+                        onClick={() => handleRemove(contact._id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

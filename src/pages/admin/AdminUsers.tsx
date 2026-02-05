@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { listUsers } from '@/lib/adminApi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -18,15 +18,13 @@ const roleBadge: Record<string, { label: string; variant: 'default' | 'secondary
 
 export default function AdminUsers() {
   const [search, setSearch] = useState('');
-  const { data: users = [], isLoading } = useQuery({
-    queryKey: ['admin', 'users'],
-    queryFn: listUsers,
-  });
+  const users = useQuery(api.auth.listUsers);
+  const isLoading = users === undefined;
 
-  const filtered = users.filter(
+  const filtered = (users ?? []).filter(
     (u) =>
       u.email.toLowerCase().includes(search.toLowerCase()) ||
-      u.full_name?.toLowerCase().includes(search.toLowerCase()),
+      u.fullName?.toLowerCase().includes(search.toLowerCase()),
   );
 
   return (
@@ -80,16 +78,16 @@ export default function AdminUsers() {
               {filtered.map((user) => {
                 const badge = roleBadge[user.role] ?? roleBadge.user;
                 return (
-                  <tr key={user.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                  <tr key={user._id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
                     <td className="px-4 py-3 text-sm text-foreground">{user.email}</td>
                     <td className="px-4 py-3 text-sm text-muted-foreground hidden sm:table-cell">
-                      {user.full_name || '---'}
+                      {user.fullName || '---'}
                     </td>
                     <td className="px-4 py-3">
                       <Badge variant={badge.variant}>{badge.label}</Badge>
                     </td>
                     <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">
-                      {new Date(user.created_at).toLocaleDateString('es-UY')}
+                      {new Date(user._creationTime).toLocaleDateString('es-UY')}
                     </td>
                   </tr>
                 );

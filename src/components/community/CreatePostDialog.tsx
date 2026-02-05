@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { useCommunities } from '@/hooks/useSupabase';
-import { createCommunityPost } from '@/lib/api';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
+import { useAuth } from '@/hooks/useAuth';
 import {
   Dialog,
   DialogContent,
@@ -22,30 +22,37 @@ import {
 } from '@/components/ui/select';
 import { Loader2, Send } from 'lucide-react';
 import { toast } from 'sonner';
+import type { Id } from '../../../convex/_generated/dataModel';
 
 interface CreatePostDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  defaultCommunityId?: string;
+  defaultCommunityId?: Id<"communities">;
 }
 
 export function CreatePostDialog({ isOpen, onClose, defaultCommunityId }: CreatePostDialogProps) {
-  const [communityId, setCommunityId] = useState(defaultCommunityId || '');
+  const { user } = useAuth();
+  const [communityId, setCommunityId] = useState<Id<"communities"> | ''>(defaultCommunityId || '');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const { data: communities = [] } = useCommunities();
-  const queryClient = useQueryClient();
+
+  const communities = useQuery(api.communities.listCommunities);
+  const createPostMutation = useMutation(api.communities.createCommunityPost);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!communityId || !title.trim() || !content.trim()) return;
+    if (!communityId || !title.trim() || !content.trim() || !user) return;
 
     setSubmitting(true);
     try {
-      await createCommunityPost(communityId, title.trim(), content.trim());
+      await createPostMutation({
+        communityId: communityId as Id<"communities">,
+        authorId: user._id,
+        title: title.trim(),
+        content: content.trim(),
+      });
       toast.success('Publicacion creada');
-      queryClient.invalidateQueries({ queryKey: ['community-posts'] });
       setCommunityId(defaultCommunityId || '');
       setTitle('');
       setContent('');
@@ -79,13 +86,16 @@ export function CreatePostDialog({ isOpen, onClose, defaultCommunityId }: Create
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div className="space-y-2">
             <Label>Comunidad *</Label>
-            <Select value={communityId} onValueChange={setCommunityId}>
+            <Select
+              value={communityId as string}
+              onValueChange={(v) => setCommunityId(v as Id<"communities">)}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Seleccionar comunidad" />
               </SelectTrigger>
               <SelectContent>
-                {communities.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
+                {(communities ?? []).map((c) => (
+                  <SelectItem key={c._id} value={c._id}>
                     {c.name}
                   </SelectItem>
                 ))}

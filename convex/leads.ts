@@ -83,6 +83,43 @@ export const listLeadsByBrand = query({
   },
 });
 
+// List recent leads by brand (dashboard widget)
+export const listRecentLeadsByBrand = query({
+  args: { brandId: v.id("brands"), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 5;
+
+    const models = await ctx.db
+      .query("models")
+      .withIndex("by_brand", (q) => q.eq("brandId", args.brandId))
+      .collect();
+
+    const modelIds = models.map((m) => m._id);
+
+    const allTrims = await ctx.db.query("trims").collect();
+    const brandTrims = allTrims.filter((t) => modelIds.includes(t.modelId));
+    const trimIds = brandTrims.map((t) => t._id);
+
+    const allLeads = await ctx.db.query("leads").order("desc").collect();
+    const brandLeads = allLeads.filter((l) => trimIds.includes(l.carId)).slice(0, limit);
+
+    const leadsWithCar = await Promise.all(
+      brandLeads.map(async (lead) => {
+        const trim = await ctx.db.get(lead.carId);
+        if (!trim) return { ...lead, car: null };
+
+        const model = await ctx.db.get(trim.modelId);
+        if (!model) return { ...lead, car: null };
+
+        const brand = await ctx.db.get(model.brandId);
+        return { ...lead, car: { ...trim, model, brand } };
+      })
+    );
+
+    return leadsWithCar;
+  },
+});
+
 // Get leads by user
 export const getMyLeads = query({
   args: { userId: v.id("users") },

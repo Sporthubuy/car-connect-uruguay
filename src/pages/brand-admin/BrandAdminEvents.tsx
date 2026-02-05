@@ -1,38 +1,54 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { BrandAdminLayout } from '@/components/brand-admin/BrandAdminLayout';
 import { useBrandAdmin } from '@/hooks/useBrandAdmin';
-import { listEventsAdmin, deleteEvent } from '@/lib/adminApi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Plus, Search, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import type { Id } from '../../../convex/_generated/dataModel';
 
 export default function BrandAdminEvents() {
   const [search, setSearch] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<{ id: Id<"events">; title: string } | null>(null);
   const { brandInfo } = useBrandAdmin();
-  const queryClient = useQueryClient();
 
-  const { data: events = [], isLoading } = useQuery({
-    queryKey: ['brand-admin', 'events', brandInfo?.brand_id],
-    queryFn: () => listEventsAdmin(brandInfo!.brand_id),
-    enabled: !!brandInfo?.brand_id,
-  });
+  const brandId = brandInfo?.brand_id as Id<"brands"> | undefined;
 
-  const filtered = events.filter((e) =>
+  const events = useQuery(
+    api.events.listEventsByBrand,
+    brandId ? { brandId } : 'skip'
+  );
+
+  const deleteEventMutation = useMutation(api.events.deleteEvent);
+
+  const isLoading = events === undefined;
+  const filtered = (events ?? []).filter((e) =>
     e.title.toLowerCase().includes(search.toLowerCase()),
   );
 
-  const handleDelete = async (id: string, title: string) => {
-    if (!confirm(`Eliminar evento "${title}"?`)) return;
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await deleteEvent(id);
+      await deleteEventMutation({ eventId: deleteTarget.id });
       toast.success('Evento eliminado');
-      queryClient.invalidateQueries({ queryKey: ['brand-admin', 'events'] });
     } catch (err: any) {
       toast.error('Error', { description: err.message });
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -78,20 +94,20 @@ export default function BrandAdminEvents() {
             </thead>
             <tbody>
               {filtered.map((event) => (
-                <tr key={event.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                <tr key={event._id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
                   <td className="px-4 py-3 font-medium text-foreground">{event.title}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">{event.location}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">
-                    {new Date(event.event_date).toLocaleDateString('es-UY')}
+                    {new Date(event.eventDate).toLocaleDateString('es-UY')}
                   </td>
                   <td className="px-4 py-3">
-                    <Badge variant={event.is_public ? 'default' : 'secondary'}>
-                      {event.is_public ? 'Público' : 'Privado'}
+                    <Badge variant={event.isPublic ? 'default' : 'secondary'}>
+                      {event.isPublic ? 'Público' : 'Privado'}
                     </Badge>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
-                      <Link to={`/marca/eventos/${event.id}`}>
+                      <Link to={`/marca/eventos/${event._id}`}>
                         <Button variant="ghost" size="icon" className="h-8 w-8" title="Editar">
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -101,7 +117,7 @@ export default function BrandAdminEvents() {
                         size="icon"
                         className="h-8 w-8 text-destructive"
                         title="Eliminar"
-                        onClick={() => handleDelete(event.id, event.title)}
+                        onClick={() => setDeleteTarget({ id: event._id, title: event.title })}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -113,6 +129,24 @@ export default function BrandAdminEvents() {
           </table>
         </div>
       )}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar evento</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas eliminar el evento "{deleteTarget?.title}"?
+              Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </BrandAdminLayout>
   );
 }

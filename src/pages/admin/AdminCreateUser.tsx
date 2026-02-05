@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { createUserAccount, listBrandsAdmin } from '@/lib/adminApi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import type { UserRole } from '@/types';
+import type { Id } from '../../../convex/_generated/dataModel';
 
 const roleOptions: { value: UserRole; label: string }[] = [
   { value: 'user', label: 'Usuario' },
@@ -19,16 +20,14 @@ const roleOptions: { value: UserRole; label: string }[] = [
 export default function AdminCreateUser() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState<UserRole>('user');
   const [brandId, setBrandId] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const { data: brands = [] } = useQuery({
-    queryKey: ['admin', 'brands'],
-    queryFn: listBrandsAdmin,
-  });
+  const brands = useQuery(api.cars.listBrands);
+  const createUserMutation = useMutation(api.admin.createUser);
+  const setBrandAdminMutation = useMutation(api.admin.setBrandAdmin);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,13 +39,19 @@ export default function AdminCreateUser() {
 
     setSaving(true);
     try {
-      await createUserAccount({
+      const userId = await createUserMutation({
         email,
-        password,
         fullName,
         role,
-        brandId: role === 'brand_admin' ? brandId : undefined,
       });
+
+      if (role === 'brand_admin' && brandId) {
+        await setBrandAdminMutation({
+          clerkUserId: email, // We use email as identifier for Clerk sync
+          brandId: brandId as Id<"brands">,
+        });
+      }
+
       toast.success('Usuario creado correctamente');
       navigate('/admin/users');
     } catch (err: any) {
@@ -76,19 +81,6 @@ export default function AdminCreateUser() {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="usuario@email.com"
             required
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="password">Contraseña *</Label>
-          <Input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Mínimo 8 caracteres"
-            required
-            minLength={8}
           />
         </div>
 
@@ -134,8 +126,8 @@ export default function AdminCreateUser() {
               required
             >
               <option value="">Seleccionar marca...</option>
-              {brands.map((b) => (
-                <option key={b.id} value={b.id}>
+              {(brands ?? []).map((b) => (
+                <option key={b._id} value={b._id}>
                   {b.name}
                 </option>
               ))}

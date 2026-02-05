@@ -1,36 +1,51 @@
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { BrandAdminLayout } from '@/components/brand-admin/BrandAdminLayout';
-import { listTrimsAdmin, getModel, deleteTrim } from '@/lib/adminApi';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Plus, Pencil, Trash2, ArrowLeft, Loader2, Star } from 'lucide-react';
 import { toast } from 'sonner';
+import type { Id } from '../../../convex/_generated/dataModel';
 
 export default function BrandAdminTrims() {
   const { modelId } = useParams<{ modelId: string }>();
-  const queryClient = useQueryClient();
+  const [deleteTarget, setDeleteTarget] = useState<{ id: Id<"trims">; name: string } | null>(null);
 
-  const { data: model } = useQuery({
-    queryKey: ['brand-admin', 'model', modelId],
-    queryFn: () => getModel(modelId!),
-    enabled: !!modelId,
-  });
+  const model = useQuery(
+    api.cars.getModel,
+    modelId ? { modelId: modelId as Id<"models"> } : 'skip'
+  );
 
-  const { data: trims = [], isLoading } = useQuery({
-    queryKey: ['brand-admin', 'trims', modelId],
-    queryFn: () => listTrimsAdmin(modelId!),
-    enabled: !!modelId,
-  });
+  const trims = useQuery(
+    api.cars.listTrims,
+    modelId ? { modelId: modelId as Id<"models"> } : 'skip'
+  );
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Eliminar versión "${name}"?`)) return;
+  const deleteTrimMutation = useMutation(api.cars.deleteTrim);
+
+  const isLoading = trims === undefined;
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await deleteTrim(id);
+      await deleteTrimMutation({ trimId: deleteTarget.id });
       toast.success('Versión eliminada');
-      queryClient.invalidateQueries({ queryKey: ['brand-admin', 'trims', modelId] });
     } catch (err: any) {
       toast.error('Error', { description: err.message });
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -59,7 +74,7 @@ export default function BrandAdminTrims() {
         <div className="flex items-center justify-center py-16">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      ) : trims.length === 0 ? (
+      ) : (trims ?? []).length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
           No hay versiones creadas para este modelo
         </div>
@@ -78,23 +93,23 @@ export default function BrandAdminTrims() {
               </tr>
             </thead>
             <tbody>
-              {trims.map((trim) => (
-                <tr key={trim.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+              {(trims ?? []).map((trim) => (
+                <tr key={trim._id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
                   <td className="px-4 py-3 font-medium text-foreground">{trim.name}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground hidden sm:table-cell">{trim.year}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">
-                    ${trim.price_usd.toLocaleString()}
+                    ${trim.priceUsd.toLocaleString()}
                   </td>
                   <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">{trim.engine}</td>
                   <td className="px-4 py-3 hidden lg:table-cell">
-                    <Badge variant="outline">{trim.fuel_type}</Badge>
+                    <Badge variant="outline">{trim.fuelType}</Badge>
                   </td>
                   <td className="px-4 py-3 hidden lg:table-cell">
-                    {trim.is_featured && <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />}
+                    {trim.isFeatured && <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
-                      <Link to={`/marca/versiones/${trim.id}`}>
+                      <Link to={`/marca/versiones/${trim._id}`}>
                         <Button variant="ghost" size="icon" className="h-8 w-8" title="Editar">
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -104,7 +119,7 @@ export default function BrandAdminTrims() {
                         size="icon"
                         className="h-8 w-8 text-destructive"
                         title="Eliminar"
-                        onClick={() => handleDelete(trim.id, trim.name)}
+                        onClick={() => setDeleteTarget({ id: trim._id, name: trim.name })}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -116,6 +131,24 @@ export default function BrandAdminTrims() {
           </table>
         </div>
       )}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar versión</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas eliminar la versión "{deleteTarget?.name}"?
+              Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </BrandAdminLayout>
   );
 }

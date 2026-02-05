@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { BrandAdminLayout } from '@/components/brand-admin/BrandAdminLayout';
-import { listLeadsByBrand, updateLeadStatus } from '@/lib/adminApi';
 import { useBrandAdmin } from '@/hooks/useBrandAdmin';
 import { Input } from '@/components/ui/input';
 import { Search, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { LeadStatus } from '@/types';
+import type { Id } from '../../../convex/_generated/dataModel';
+
+type LeadStatus = 'new' | 'contacted' | 'qualified' | 'converted' | 'lost';
 
 const STATUS_OPTIONS: { value: LeadStatus; label: string }[] = [
   { value: 'new', label: 'Nuevo' },
@@ -19,16 +21,20 @@ const STATUS_OPTIONS: { value: LeadStatus; label: string }[] = [
 export default function BrandAdminLeads() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const queryClient = useQueryClient();
   const { brandInfo } = useBrandAdmin();
 
-  const { data: leads = [], isLoading } = useQuery({
-    queryKey: ['brand-admin', 'leads', brandInfo?.brand_id],
-    queryFn: () => listLeadsByBrand(brandInfo!.brand_id),
-    enabled: !!brandInfo?.brand_id,
-  });
+  const brandId = brandInfo?.brand_id as Id<"brands"> | undefined;
 
-  const filtered = leads.filter((l) => {
+  const leads = useQuery(
+    api.leads.listLeadsByBrand,
+    brandId ? { brandId } : 'skip'
+  );
+
+  const updateLeadStatusMutation = useMutation(api.leads.updateLeadStatus);
+
+  const isLoading = leads === undefined;
+
+  const filtered = (leads ?? []).filter((l) => {
     const matchesSearch =
       l.name.toLowerCase().includes(search.toLowerCase()) ||
       l.email.toLowerCase().includes(search.toLowerCase());
@@ -36,11 +42,10 @@ export default function BrandAdminLeads() {
     return matchesSearch && matchesStatus;
   });
 
-  const handleStatusChange = async (id: string, status: LeadStatus) => {
+  const handleStatusChange = async (id: Id<"leads">, status: LeadStatus) => {
     try {
-      await updateLeadStatus(id, status);
+      await updateLeadStatusMutation({ leadId: id, status });
       toast.success('Estado actualizado');
-      queryClient.invalidateQueries({ queryKey: ['brand-admin', 'leads'] });
     } catch (err: any) {
       toast.error('Error', { description: err.message });
     }
@@ -85,7 +90,7 @@ export default function BrandAdminLeads() {
               <tr className="border-b bg-muted/50">
                 <th className="text-left text-sm font-medium text-muted-foreground px-4 py-3">Nombre</th>
                 <th className="text-left text-sm font-medium text-muted-foreground px-4 py-3 hidden sm:table-cell">Email</th>
-                <th className="text-left text-sm font-medium text-muted-foreground px-4 py-3 hidden md:table-cell">Teléfono</th>
+                <th className="text-left text-sm font-medium text-muted-foreground px-4 py-3 hidden md:table-cell">Telefono</th>
                 <th className="text-left text-sm font-medium text-muted-foreground px-4 py-3 hidden lg:table-cell">Auto</th>
                 <th className="text-left text-sm font-medium text-muted-foreground px-4 py-3">Estado</th>
                 <th className="text-left text-sm font-medium text-muted-foreground px-4 py-3 hidden md:table-cell">Fecha</th>
@@ -93,18 +98,20 @@ export default function BrandAdminLeads() {
             </thead>
             <tbody>
               {filtered.map((lead) => (
-                <tr key={lead.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                <tr key={lead._id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
                   <td className="px-4 py-3 font-medium text-foreground">{lead.name}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground hidden sm:table-cell">{lead.email}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">{lead.phone}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground hidden lg:table-cell">
-                    {[lead.brand_name, lead.model_name, lead.trim_name].filter(Boolean).join(' ') || '—'}
+                    {lead.car
+                      ? [lead.car.model?.name, lead.car.name].filter(Boolean).join(' ')
+                      : '\u2014'}
                   </td>
                   <td className="px-4 py-3">
                     <select
                       className="h-8 rounded-md border border-input bg-background px-2 py-1 text-xs"
                       value={lead.status}
-                      onChange={(e) => handleStatusChange(lead.id, e.target.value as LeadStatus)}
+                      onChange={(e) => handleStatusChange(lead._id, e.target.value as LeadStatus)}
                     >
                       {STATUS_OPTIONS.map((s) => (
                         <option key={s.value} value={s.value}>{s.label}</option>
@@ -112,7 +119,7 @@ export default function BrandAdminLeads() {
                     </select>
                   </td>
                   <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">
-                    {new Date(lead.created_at).toLocaleDateString('es-UY')}
+                    {new Date(lead._creationTime).toLocaleDateString('es-UY')}
                   </td>
                 </tr>
               ))}

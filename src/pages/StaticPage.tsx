@@ -1,6 +1,6 @@
-import { useParams } from 'react-router-dom';
+import { useQuery } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 import { Layout } from '@/components/layout/Layout';
-import { useStaticPage } from '@/hooks/useSupabase';
 import { Loader2, FileText } from 'lucide-react';
 
 interface StaticPageProps {
@@ -8,7 +8,16 @@ interface StaticPageProps {
 }
 
 const StaticPage = ({ pageKey }: StaticPageProps) => {
-  const { data: page, isLoading } = useStaticPage(pageKey);
+  const titleKey = `page_${pageKey}_title`;
+  const contentKey = `page_${pageKey}_content`;
+
+  const settings = useQuery(api.settings.getSettings, {
+    keys: [titleKey, contentKey],
+  });
+
+  const isLoading = settings === undefined;
+  const title = settings?.[titleKey];
+  const content = settings?.[contentKey];
 
   return (
     <Layout>
@@ -18,13 +27,13 @@ const StaticPage = ({ pageKey }: StaticPageProps) => {
             <div className="flex items-center justify-center py-16">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
-          ) : page ? (
+          ) : title && content ? (
             <>
               <h1 className="text-3xl font-bold text-foreground mb-8">
-                {page.title}
+                {title}
               </h1>
               <div className="prose prose-neutral max-w-none">
-                {page.content.split('\n').map((line, i) => (
+                {content.split('\n').map((line, i) => (
                   line.trim() ? (
                     <p key={i} className="text-muted-foreground leading-relaxed">
                       {line}

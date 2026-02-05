@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Car, URUGUAY_DEPARTMENTS } from '@/types';
-import { submitLead } from '@/lib/api';
-import { supabase } from '@/lib/supabase';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
+import { useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
+import { useAuth } from '@/hooks/useAuth';
+import { URUGUAY_DEPARTMENTS } from '@/types';
+import type { Id } from '../../../convex/_generated/dataModel';
 import {
   Dialog,
   DialogContent,
@@ -38,20 +39,26 @@ const leadSchema = z.object({
 
 type LeadFormData = z.infer<typeof leadSchema>;
 
+interface CarData {
+  _id: Id<"trims">;
+  name: string;
+  priceUsd: number;
+  brand: { name: string };
+  model: { name: string };
+}
+
 interface LeadModalProps {
-  car: Car;
+  car: CarData;
   isOpen: boolean;
   onClose: () => void;
 }
 
 export function LeadModal({ car, isOpen, onClose }: LeadModalProps) {
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [user, setUser] = useState<SupabaseUser | null>(null);
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
-  }, []);
+  const createLeadMutation = useMutation(api.leads.createLead);
 
   const {
     register,
@@ -67,15 +74,15 @@ export function LeadModal({ car, isOpen, onClose }: LeadModalProps) {
     setIsSubmitting(true);
 
     try {
-      await submitLead({
-        car_id: car.id,
+      await createLeadMutation({
+        carId: car._id,
+        userId: user?._id,
         name: data.name,
         email: data.email,
         phone: data.phone,
         department: data.department,
         city: data.city,
         message: data.message,
-        user_id: user?.id,
       });
 
       setIsSuccess(true);
@@ -138,7 +145,7 @@ export function LeadModal({ car, isOpen, onClose }: LeadModalProps) {
                 <span className="font-medium text-foreground">
                   {car.brand.name} {car.model.name} {car.name}
                 </span>{' '}
-                ({formatPrice(car.price_usd)})
+                ({formatPrice(car.priceUsd)})
               </DialogDescription>
             </DialogHeader>
 

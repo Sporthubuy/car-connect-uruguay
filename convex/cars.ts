@@ -305,6 +305,35 @@ export const deleteTrim = mutation({
   },
 });
 
+// ============ BRAND PROFILE ============
+
+export const updateBrandProfile = mutation({
+  args: {
+    brandId: v.id("brands"),
+    logoUrl: v.optional(v.string()),
+    description: v.optional(v.string()),
+    website: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    socialFacebook: v.optional(v.string()),
+    socialInstagram: v.optional(v.string()),
+    socialTwitter: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { brandId, ...updates } = args;
+    const filteredUpdates = Object.fromEntries(
+      Object.entries(updates).filter(([_, v]) => v !== undefined)
+    );
+    await ctx.db.patch(brandId, filteredUpdates);
+  },
+});
+
+export const getTrim = query({
+  args: { trimId: v.id("trims") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.trimId);
+  },
+});
+
 // ============ SAVED CARS ============
 
 export const getSavedCars = query({

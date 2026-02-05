@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+import { useAuth } from '@/hooks/useAuth';
 import { Layout } from '@/components/layout/Layout';
-import { useReviewBySlug, useComments } from '@/hooks/useSupabase';
-import { submitComment } from '@/lib/api';
-import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -21,31 +21,40 @@ import {
   Newspaper,
   User,
 } from 'lucide-react';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
-import { useEffect } from 'react';
 
 const ReviewDetail = () => {
   const { slug } = useParams<{ slug: string }>();
-  const { data: review, isLoading } = useReviewBySlug(slug || '');
-  const { data: comments = [], refetch: refetchComments } = useComments(review?.id || '');
+  const { user, isAuthenticated } = useAuth();
+
+  const review = useQuery(
+    api.reviews.getReviewBySlug,
+    slug ? { slug } : 'skip'
+  );
+  const comments = useQuery(
+    api.reviews.listComments,
+    review?._id ? { postId: review._id, approvedOnly: true } : 'skip'
+  );
+
+  const createCommentMutation = useMutation(api.reviews.createComment);
+
   const [commentText, setCommentText] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [user, setUser] = useState<SupabaseUser | null>(null);
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
-  }, []);
+  const isLoading = review === undefined;
 
   const handleSubmitComment = async () => {
-    if (!commentText.trim() || !review) return;
+    if (!commentText.trim() || !review || !user) return;
     setSubmitting(true);
     try {
-      await submitComment(review.id, commentText.trim());
+      await createCommentMutation({
+        postId: review._id,
+        authorId: user._id,
+        content: commentText.trim(),
+      });
       setCommentText('');
       toast.success('Comentario enviado', {
         description: 'Tu comentario sera visible una vez aprobado por un moderador.',
       });
-      refetchComments();
     } catch (err: any) {
       toast.error('Error al enviar comentario', { description: err.message });
     } finally {
@@ -82,7 +91,8 @@ const ReviewDetail = () => {
     );
   }
 
-  const authorName = (review as any).author?.full_name || 'Redaccion CarConnect';
+  const authorName = review.author?.fullName || 'Redaccion CarConnect';
+  const commentList = comments ?? [];
 
   return (
     <Layout>
@@ -90,7 +100,7 @@ const ReviewDetail = () => {
       <div className="relative">
         <div className="aspect-[21/9] md:aspect-[3/1] overflow-hidden bg-muted">
           <img
-            src={review.cover_image}
+            src={review.coverImage}
             alt={review.title}
             className="h-full w-full object-cover"
           />
@@ -123,11 +133,11 @@ const ReviewDetail = () => {
                 <Eye className="h-4 w-4" />
                 <span>{review.views.toLocaleString()} vistas</span>
               </div>
-              {review.published_at && (
+              {review.publishedAt && (
                 <div className="flex items-center gap-1">
                   <Clock className="h-4 w-4" />
                   <span>
-                    {new Date(review.published_at).toLocaleDateString('es-UY', {
+                    {new Date(review.publishedAt).toLocaleDateString('es-UY', {
                       day: 'numeric',
                       month: 'long',
                       year: 'numeric',
@@ -193,12 +203,12 @@ const ReviewDetail = () => {
               <div className="flex items-center gap-2 mb-6">
                 <MessageSquare className="h-5 w-5 text-primary" />
                 <h2 className="text-xl font-semibold text-foreground">
-                  Comentarios ({comments.length})
+                  Comentarios ({commentList.length})
                 </h2>
               </div>
 
               {/* Comment Form */}
-              {user ? (
+              {isAuthenticated ? (
                 <div className="rounded-xl bg-card border p-4 mb-6">
                   <Textarea
                     placeholder="Escribi tu comentario..."
@@ -240,11 +250,11 @@ const ReviewDetail = () => {
               )}
 
               {/* Comments List */}
-              {comments.length > 0 ? (
+              {commentList.length > 0 ? (
                 <div className="space-y-4">
-                  {comments.map((comment) => (
+                  {commentList.map((comment) => (
                     <div
-                      key={comment.id}
+                      key={comment._id}
                       className="rounded-lg bg-card border p-4"
                     >
                       <div className="flex items-center gap-2 mb-2">
@@ -252,10 +262,10 @@ const ReviewDetail = () => {
                           <User className="h-3.5 w-3.5 text-primary" />
                         </div>
                         <span className="text-sm font-medium">
-                          {comment.author_name || 'Usuario'}
+                          {comment.author?.fullName || 'Usuario'}
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {new Date(comment.created_at).toLocaleDateString('es-UY', {
+                          {new Date(comment._creationTime).toLocaleDateString('es-UY', {
                             day: 'numeric',
                             month: 'short',
                             year: 'numeric',

@@ -1,11 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+import { useAuth } from '@/hooks/useAuth';
 import { Layout } from '@/components/layout/Layout';
 import { LeadModal } from '@/components/cars/LeadModal';
-import { useCarById, useCars, useSavedCarIds } from '@/hooks/useSupabase';
-import { saveCar, unsaveCar } from '@/lib/api';
-import { supabase } from '@/lib/supabase';
 import { CarCard } from '@/components/cars/CarCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,7 +24,7 @@ import {
   Car,
   Loader2,
 } from 'lucide-react';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
+import type { Id } from '../../convex/_generated/dataModel';
 
 const fuelTypeLabels: Record<string, string> = {
   gasolina: 'Gasolina',
@@ -51,39 +50,44 @@ const segmentLabels: Record<string, string> = {
 const CarDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const { data: car, isLoading } = useCarById(id || '');
-  const { data: allCars = [] } = useCars();
-  const { data: savedCarIds = [], refetch: refetchSavedIds } = useSavedCarIds();
+  const { user, isAuthenticated } = useAuth();
+
+  const car = useQuery(
+    api.cars.getCarById,
+    id ? { trimId: id as Id<"trims"> } : 'skip'
+  );
+  const allCars = useQuery(api.cars.listCarsWithDetails);
+  const savedCarIds = useQuery(
+    api.cars.getSavedCarIds,
+    user?._id ? { userId: user._id } : 'skip'
+  );
+
+  const saveCarMutation = useMutation(api.cars.saveCar);
+  const unsaveCarMutation = useMutation(api.cars.unsaveCar);
+
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
-  const [user, setUser] = useState<SupabaseUser | null>(null);
   const [savingCar, setSavingCar] = useState(false);
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
-  }, []);
-
-  const isSaved = car ? savedCarIds.includes(car.id) : false;
+  const isLoading = car === undefined;
+  const isSaved = car && savedCarIds ? savedCarIds.includes(car._id) : false;
 
   const handleToggleSave = async () => {
-    if (!user) {
+    if (!isAuthenticated) {
       navigate('/auth');
       return;
     }
-    if (!car) return;
+    if (!car || !user) return;
 
     setSavingCar(true);
     try {
       if (isSaved) {
-        await unsaveCar(car.id);
+        await unsaveCarMutation({ userId: user._id, trimId: car._id });
         toast.success('Auto removido de guardados');
       } else {
-        await saveCar(car.id);
+        await saveCarMutation({ userId: user._id, trimId: car._id });
         toast.success('Auto guardado');
       }
-      refetchSavedIds();
-      queryClient.invalidateQueries({ queryKey: ['saved-cars'] });
     } catch (err: any) {
       toast.error('Error', { description: err.message });
     } finally {
@@ -105,15 +109,14 @@ const CarDetail = () => {
           text: shareText,
           url: shareUrl,
         });
-      } catch (err) {
+      } catch {
         // User cancelled or error
       }
     } else {
-      // Fallback to clipboard
       try {
         await navigator.clipboard.writeText(shareUrl);
         toast.success('Link copiado al portapapeles');
-      } catch (err) {
+      } catch {
         toast.error('No se pudo copiar el link');
       }
     }
@@ -148,11 +151,11 @@ const CarDetail = () => {
     );
   }
 
-  const relatedCars = allCars
+  const relatedCars = (allCars ?? [])
     .filter(
       (c) =>
-        c.id !== car.id &&
-        (c.brand.id === car.brand.id || c.model.segment === car.model.segment)
+        c._id !== car._id &&
+        (c.brand._id === car.brand._id || c.model.segment === car.model.segment)
     )
     .slice(0, 4);
 
@@ -217,7 +220,7 @@ const CarDetail = () => {
                   </button>
                 </>
               )}
-              {car.is_featured && (
+              {car.isFeatured && (
                 <Badge className="absolute top-4 left-4 bg-accent text-accent-foreground border-0">
                   Destacado
                 </Badge>
@@ -251,9 +254,9 @@ const CarDetail = () => {
             {/* Header */}
             <div className="mb-6">
               <div className="flex items-center gap-2 mb-2">
-                {car.brand.logo_url && (
+                {car.brand.logoUrl && (
                   <img
-                    src={car.brand.logo_url}
+                    src={car.brand.logoUrl}
                     alt={car.brand.name}
                     className="h-6 w-auto"
                   />
@@ -272,7 +275,7 @@ const CarDetail = () => {
             <div className="mb-6 p-4 rounded-xl bg-muted/50 border">
               <p className="text-sm text-muted-foreground mb-1">Precio desde</p>
               <p className="text-3xl font-bold text-foreground">
-                {formatPrice(car.price_usd)}
+                {formatPrice(car.priceUsd)}
               </p>
             </div>
 
@@ -289,7 +292,7 @@ const CarDetail = () => {
                 <Fuel className="h-5 w-5 text-accent" />
                 <div>
                   <p className="text-xs text-muted-foreground">Combustible</p>
-                  <p className="font-semibold">{fuelTypeLabels[car.fuel_type]}</p>
+                  <p className="font-semibold">{fuelTypeLabels[car.fuelType]}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 p-3 rounded-lg bg-card border">
@@ -366,32 +369,32 @@ const CarDetail = () => {
                       <span className="font-medium">{car.torque} Nm</span>
                     </div>
                   )}
-                  {car.acceleration_0_100 && (
+                  {car.acceleration0100 && (
                     <div className="flex justify-between py-2 border-b">
                       <span className="text-muted-foreground">0-100 km/h</span>
-                      <span className="font-medium">{car.acceleration_0_100}s</span>
+                      <span className="font-medium">{car.acceleration0100}s</span>
                     </div>
                   )}
-                  {car.top_speed && (
+                  {car.topSpeed && (
                     <div className="flex justify-between py-2 border-b">
                       <span className="text-muted-foreground">Velocidad maxima</span>
-                      <span className="font-medium">{car.top_speed} km/h</span>
+                      <span className="font-medium">{car.topSpeed} km/h</span>
                     </div>
                   )}
-                  {car.fuel_consumption && (
+                  {car.fuelConsumption && (
                     <div className="flex justify-between py-2 border-b">
                       <span className="text-muted-foreground">Consumo combinado</span>
-                      <span className="font-medium">{car.fuel_consumption} L/100km</span>
+                      <span className="font-medium">{car.fuelConsumption} L/100km</span>
                     </div>
                   )}
                   <div className="flex justify-between py-2 border-b">
                     <span className="text-muted-foreground">Puertas</span>
                     <span className="font-medium">{car.doors}</span>
                   </div>
-                  {car.trunk_capacity && (
+                  {car.trunkCapacity && (
                     <div className="flex justify-between py-2 border-b">
                       <span className="text-muted-foreground">Baul</span>
-                      <span className="font-medium">{car.trunk_capacity} L</span>
+                      <span className="font-medium">{car.trunkCapacity} L</span>
                     </div>
                   )}
                 </div>
@@ -421,7 +424,7 @@ const CarDetail = () => {
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {relatedCars.map((relatedCar) => (
-                <CarCard key={relatedCar.id} car={relatedCar} />
+                <CarCard key={relatedCar._id} car={relatedCar} />
               ))}
             </div>
           </section>

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { getAdminStats, getAdminTrends } from '@/lib/adminApi';
 import {
   Building2,
   Car,
@@ -26,15 +26,10 @@ import {
 } from 'recharts';
 
 export default function AdminDashboard() {
-  const { data: stats, isLoading } = useQuery({
-    queryKey: ['admin', 'stats'],
-    queryFn: getAdminStats,
-  });
+  const stats = useQuery(api.settings.getAdminStats);
+  const trends = useQuery(api.settings.getAdminTrends);
 
-  const { data: trends } = useQuery({
-    queryKey: ['admin', 'trends'],
-    queryFn: getAdminTrends,
-  });
+  const isLoading = stats === undefined;
 
   const cards = [
     { name: 'Marcas', href: '/admin/brands', icon: Building2, count: stats?.brands, badge: null },

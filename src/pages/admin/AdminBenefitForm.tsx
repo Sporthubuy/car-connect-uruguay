@@ -1,86 +1,90 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { getBenefit, createBenefit, updateBenefit, listBrandsAdmin } from '@/lib/adminApi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { ArrowLeft, Loader2 } from 'lucide-react';
+import type { Id } from '../../../convex/_generated/dataModel';
 
 export default function AdminBenefitForm() {
   const { benefitId } = useParams<{ benefitId: string }>();
   const isEdit = benefitId && benefitId !== 'new';
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
 
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
-    brand_id: '',
+    brandId: '',
     title: '',
     description: '',
     terms: '',
-    valid_from: '',
-    valid_until: '',
-    is_active: true,
+    validFrom: '',
+    validUntil: '',
+    isActive: true,
   });
 
-  const { data: brands = [] } = useQuery({
-    queryKey: ['admin', 'brands'],
-    queryFn: listBrandsAdmin,
-  });
+  const brands = useQuery(api.cars.listBrands);
+  const benefit = useQuery(
+    api.activations.getBenefit,
+    isEdit ? { benefitId: benefitId as Id<"benefits"> } : 'skip'
+  );
 
-  const { data: benefit, isLoading } = useQuery({
-    queryKey: ['admin', 'benefit', benefitId],
-    queryFn: () => getBenefit(benefitId!),
-    enabled: !!isEdit,
-  });
+  const createBenefitMutation = useMutation(api.activations.createBenefit);
+  const updateBenefitMutation = useMutation(api.activations.updateBenefit);
+
+  const isLoading = isEdit && benefit === undefined;
 
   useEffect(() => {
     if (benefit) {
       setForm({
-        brand_id: benefit.brand_id,
+        brandId: benefit.brandId,
         title: benefit.title,
         description: benefit.description,
         terms: benefit.terms ?? '',
-        valid_from: benefit.valid_from,
-        valid_until: benefit.valid_until,
-        is_active: benefit.is_active,
+        validFrom: benefit.validFrom,
+        validUntil: benefit.validUntil,
+        isActive: benefit.isActive,
       });
     }
   }, [benefit]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.brand_id || !form.title.trim() || !form.valid_from || !form.valid_until) {
+    if (!form.brandId || !form.title.trim() || !form.validFrom || !form.validUntil) {
       toast.error('Marca, título y fechas de vigencia son obligatorios');
       return;
     }
 
     setSaving(true);
     try {
-      const payload = {
-        brand_id: form.brand_id,
-        title: form.title.trim(),
-        description: form.description.trim(),
-        terms: form.terms.trim() || null,
-        valid_from: form.valid_from,
-        valid_until: form.valid_until,
-        is_active: form.is_active,
-      };
-
       if (isEdit) {
-        const { brand_id: _, ...updates } = payload;
-        await updateBenefit(benefitId!, updates);
+        await updateBenefitMutation({
+          benefitId: benefitId as Id<"benefits">,
+          title: form.title.trim(),
+          description: form.description.trim(),
+          terms: form.terms.trim() || undefined,
+          validFrom: form.validFrom,
+          validUntil: form.validUntil,
+          isActive: form.isActive,
+        });
         toast.success('Beneficio actualizado');
       } else {
-        await createBenefit(payload);
+        await createBenefitMutation({
+          brandId: form.brandId as Id<"brands">,
+          title: form.title.trim(),
+          description: form.description.trim(),
+          terms: form.terms.trim() || undefined,
+          validFrom: form.validFrom,
+          validUntil: form.validUntil,
+          isActive: form.isActive,
+        });
         toast.success('Beneficio creado');
       }
 
-      queryClient.invalidateQueries({ queryKey: ['admin', 'benefits'] });
       navigate('/admin/benefits');
     } catch (err: any) {
       toast.error('Error', { description: err.message });
@@ -115,17 +119,17 @@ export default function AdminBenefitForm() {
       <form onSubmit={handleSubmit} className="max-w-lg">
         <div className="rounded-xl border bg-card p-6 space-y-5">
           <div className="space-y-2">
-            <Label htmlFor="brand_id">Marca *</Label>
+            <Label htmlFor="brandId">Marca *</Label>
             <select
-              id="brand_id"
+              id="brandId"
               className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={form.brand_id}
-              onChange={(e) => setForm((p) => ({ ...p, brand_id: e.target.value }))}
+              value={form.brandId}
+              onChange={(e) => setForm((p) => ({ ...p, brandId: e.target.value }))}
               required
             >
               <option value="">Seleccionar marca</option>
-              {brands.map((b) => (
-                <option key={b.id} value={b.id}>{b.name}</option>
+              {(brands ?? []).map((b) => (
+                <option key={b._id} value={b._id}>{b.name}</option>
               ))}
             </select>
           </div>
@@ -158,12 +162,12 @@ export default function AdminBenefitForm() {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="valid_from">Válido desde *</Label>
-              <Input id="valid_from" type="date" value={form.valid_from} onChange={(e) => setForm((p) => ({ ...p, valid_from: e.target.value }))} required />
+              <Label htmlFor="validFrom">Válido desde *</Label>
+              <Input id="validFrom" type="date" value={form.validFrom} onChange={(e) => setForm((p) => ({ ...p, validFrom: e.target.value }))} required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="valid_until">Válido hasta *</Label>
-              <Input id="valid_until" type="date" value={form.valid_until} onChange={(e) => setForm((p) => ({ ...p, valid_until: e.target.value }))} required />
+              <Label htmlFor="validUntil">Válido hasta *</Label>
+              <Input id="validUntil" type="date" value={form.validUntil} onChange={(e) => setForm((p) => ({ ...p, validUntil: e.target.value }))} required />
             </div>
           </div>
 
@@ -172,7 +176,7 @@ export default function AdminBenefitForm() {
               <Label>Activo</Label>
               <p className="text-xs text-muted-foreground">Los beneficios inactivos no se muestran</p>
             </div>
-            <Switch checked={form.is_active} onCheckedChange={(checked) => setForm((p) => ({ ...p, is_active: checked }))} />
+            <Switch checked={form.isActive} onCheckedChange={(checked) => setForm((p) => ({ ...p, isActive: checked }))} />
           </div>
 
           <div className="flex gap-3 pt-2">

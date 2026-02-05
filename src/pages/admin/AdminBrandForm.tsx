@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
+import type { Id } from '../../../convex/_generated/dataModel';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { getBrand, createBrand, updateBrand } from '@/lib/adminApi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,31 +15,33 @@ export default function AdminBrandForm() {
   const { brandId } = useParams<{ brandId: string }>();
   const isEdit = brandId && brandId !== 'new';
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
+
+  const createBrand = useMutation(api.cars.createBrand);
+  const updateBrand = useMutation(api.cars.updateBrand);
 
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     name: '',
     slug: '',
-    logo_url: '',
+    logoUrl: '',
     country: 'UY',
-    is_active: true,
+    isActive: true,
   });
 
-  const { data: brand, isLoading } = useQuery({
-    queryKey: ['admin', 'brand', brandId],
-    queryFn: () => getBrand(brandId!),
-    enabled: !!isEdit,
-  });
+  const brand = useQuery(
+    api.cars.getBrand,
+    isEdit ? { brandId: brandId as Id<"brands"> } : 'skip',
+  );
+  const isLoading = isEdit && brand === undefined;
 
   useEffect(() => {
     if (brand) {
       setForm({
         name: brand.name,
         slug: brand.slug,
-        logo_url: brand.logo_url ?? '',
+        logoUrl: brand.logoUrl ?? '',
         country: brand.country,
-        is_active: brand.is_active,
+        isActive: brand.isActive,
       });
     }
   }, [brand]);
@@ -69,23 +72,27 @@ export default function AdminBrandForm() {
 
     setSaving(true);
     try {
-      const payload = {
-        name: form.name.trim(),
-        slug: form.slug.trim(),
-        logo_url: form.logo_url.trim() || null,
-        country: form.country.trim() || 'UY',
-        is_active: form.is_active,
-      };
-
       if (isEdit) {
-        await updateBrand(brandId!, payload);
+        await updateBrand({
+          brandId: brandId as Id<"brands">,
+          name: form.name.trim(),
+          slug: form.slug.trim(),
+          logoUrl: form.logoUrl.trim() || undefined,
+          country: form.country.trim() || 'UY',
+          isActive: form.isActive,
+        });
         toast.success('Marca actualizada');
       } else {
-        await createBrand(payload);
+        await createBrand({
+          name: form.name.trim(),
+          slug: form.slug.trim(),
+          logoUrl: form.logoUrl.trim() || undefined,
+          country: form.country.trim() || 'UY',
+          isActive: form.isActive,
+        });
         toast.success('Marca creada');
       }
 
-      queryClient.invalidateQueries({ queryKey: ['admin', 'brands'] });
       navigate('/admin/brands');
     } catch (err: any) {
       toast.error('Error', {
@@ -144,22 +151,22 @@ export default function AdminBrandForm() {
               required
             />
             <p className="text-xs text-muted-foreground">
-              Identificador URL. Se genera automáticamente del nombre.
+              Identificador URL. Se genera automaticamente del nombre.
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="logo_url">URL del logo</Label>
+            <Label htmlFor="logoUrl">URL del logo</Label>
             <Input
-              id="logo_url"
-              value={form.logo_url}
-              onChange={(e) => setForm((prev) => ({ ...prev, logo_url: e.target.value }))}
+              id="logoUrl"
+              value={form.logoUrl}
+              onChange={(e) => setForm((prev) => ({ ...prev, logoUrl: e.target.value }))}
               placeholder="https://..."
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="country">País</Label>
+            <Label htmlFor="country">Pais</Label>
             <Input
               id="country"
               value={form.country}
@@ -172,13 +179,13 @@ export default function AdminBrandForm() {
             <div>
               <Label>Activa</Label>
               <p className="text-xs text-muted-foreground">
-                Las marcas inactivas no se muestran en el catálogo
+                Las marcas inactivas no se muestran en el catalogo
               </p>
             </div>
             <Switch
-              checked={form.is_active}
+              checked={form.isActive}
               onCheckedChange={(checked) =>
-                setForm((prev) => ({ ...prev, is_active: checked }))
+                setForm((prev) => ({ ...prev, isActive: checked }))
               }
             />
           </div>

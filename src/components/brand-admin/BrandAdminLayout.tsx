@@ -11,12 +11,14 @@ import {
   Calendar,
   Gift,
   ShieldCheck,
+  Building2,
 } from 'lucide-react';
 
 const brandAdminNav = [
-  { name: 'Mi Marca', href: '/marca', icon: LayoutDashboard },
-  { name: 'Contactos', href: '/marca/contactos', icon: Mail },
+  { name: 'Dashboard', href: '/marca', icon: LayoutDashboard },
+  { name: 'Mi Marca', href: '/marca/perfil', icon: Building2 },
   { name: 'Modelos', href: '/marca/modelos', icon: Car },
+  { name: 'Contactos', href: '/marca/contactos', icon: Mail },
   { name: 'Leads', href: '/marca/leads', icon: MessageSquare },
   { name: 'Eventos', href: '/marca/eventos', icon: Calendar },
   { name: 'Beneficios', href: '/marca/beneficios', icon: Gift },

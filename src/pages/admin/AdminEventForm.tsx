@@ -1,61 +1,61 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { getEvent, createEvent, updateEvent, listBrandsAdmin } from '@/lib/adminApi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { ArrowLeft, Loader2 } from 'lucide-react';
+import type { Id } from '../../../convex/_generated/dataModel';
 
 export default function AdminEventForm() {
   const { eventId } = useParams<{ eventId: string }>();
   const isEdit = eventId && eventId !== 'new';
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
 
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
-    brand_id: '',
+    brandId: '',
     title: '',
     slug: '',
     description: '',
-    cover_image: '',
+    coverImage: '',
     location: '',
-    event_date: '',
-    event_time: '',
-    is_public: true,
-    requires_verification: false,
-    max_attendees: '',
+    eventDate: '',
+    eventTime: '',
+    isPublic: true,
+    requiresVerification: false,
+    maxAttendees: '',
   });
 
-  const { data: brands = [] } = useQuery({
-    queryKey: ['admin', 'brands'],
-    queryFn: listBrandsAdmin,
-  });
+  const brands = useQuery(api.cars.listBrands);
+  const event = useQuery(
+    api.events.getEvent,
+    isEdit ? { eventId: eventId as Id<"events"> } : 'skip'
+  );
 
-  const { data: event, isLoading } = useQuery({
-    queryKey: ['admin', 'event', eventId],
-    queryFn: () => getEvent(eventId!),
-    enabled: !!isEdit,
-  });
+  const createEventMutation = useMutation(api.events.createEvent);
+  const updateEventMutation = useMutation(api.events.updateEvent);
+
+  const isLoading = isEdit && event === undefined;
 
   useEffect(() => {
     if (event) {
       setForm({
-        brand_id: event.brand_id ?? '',
+        brandId: event.brandId ?? '',
         title: event.title,
         slug: event.slug,
         description: event.description,
-        cover_image: event.cover_image,
+        coverImage: event.coverImage ?? '',
         location: event.location,
-        event_date: event.event_date,
-        event_time: event.event_time,
-        is_public: event.is_public,
-        requires_verification: event.requires_verification,
-        max_attendees: event.max_attendees?.toString() ?? '',
+        eventDate: event.eventDate,
+        eventTime: event.eventTime ?? '',
+        isPublic: event.isPublic,
+        requiresVerification: event.requiresVerification,
+        maxAttendees: event.maxAttendees?.toString() ?? '',
       });
     }
   }, [event]);
@@ -73,36 +73,46 @@ export default function AdminEventForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.title.trim() || !form.location.trim() || !form.event_date) {
+    if (!form.title.trim() || !form.location.trim() || !form.eventDate) {
       toast.error('Título, ubicación y fecha son obligatorios');
       return;
     }
 
     setSaving(true);
     try {
-      const payload = {
-        brand_id: form.brand_id || null,
-        title: form.title.trim(),
-        slug: form.slug.trim(),
-        description: form.description.trim(),
-        cover_image: form.cover_image.trim(),
-        location: form.location.trim(),
-        event_date: form.event_date,
-        event_time: form.event_time,
-        is_public: form.is_public,
-        requires_verification: form.requires_verification,
-        max_attendees: form.max_attendees ? Number(form.max_attendees) : null,
-      };
-
       if (isEdit) {
-        await updateEvent(eventId!, payload);
+        await updateEventMutation({
+          eventId: eventId as Id<"events">,
+          brandId: form.brandId ? (form.brandId as Id<"brands">) : undefined,
+          title: form.title.trim(),
+          slug: form.slug.trim(),
+          description: form.description.trim(),
+          coverImage: form.coverImage.trim() || undefined,
+          location: form.location.trim(),
+          eventDate: form.eventDate,
+          eventTime: form.eventTime || undefined,
+          isPublic: form.isPublic,
+          requiresVerification: form.requiresVerification,
+          maxAttendees: form.maxAttendees ? Number(form.maxAttendees) : undefined,
+        });
         toast.success('Evento actualizado');
       } else {
-        await createEvent(payload);
+        await createEventMutation({
+          brandId: form.brandId ? (form.brandId as Id<"brands">) : undefined,
+          title: form.title.trim(),
+          slug: form.slug.trim(),
+          description: form.description.trim(),
+          coverImage: form.coverImage.trim() || undefined,
+          location: form.location.trim(),
+          eventDate: form.eventDate,
+          eventTime: form.eventTime || undefined,
+          isPublic: form.isPublic,
+          requiresVerification: form.requiresVerification,
+          maxAttendees: form.maxAttendees ? Number(form.maxAttendees) : undefined,
+        });
         toast.success('Evento creado');
       }
 
-      queryClient.invalidateQueries({ queryKey: ['admin', 'events'] });
       navigate('/admin/events');
     } catch (err: any) {
       toast.error('Error', { description: err.message });
@@ -137,16 +147,16 @@ export default function AdminEventForm() {
       <form onSubmit={handleSubmit} className="max-w-lg">
         <div className="rounded-xl border bg-card p-6 space-y-5">
           <div className="space-y-2">
-            <Label htmlFor="brand_id">Marca (opcional)</Label>
+            <Label htmlFor="brandId">Marca (opcional)</Label>
             <select
-              id="brand_id"
+              id="brandId"
               className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={form.brand_id}
-              onChange={(e) => setForm((p) => ({ ...p, brand_id: e.target.value }))}
+              value={form.brandId}
+              onChange={(e) => setForm((p) => ({ ...p, brandId: e.target.value }))}
             >
               <option value="">General (sin marca)</option>
-              {brands.map((b) => (
-                <option key={b.id} value={b.id}>{b.name}</option>
+              {(brands ?? []).map((b) => (
+                <option key={b._id} value={b._id}>{b.name}</option>
               ))}
             </select>
           </div>
@@ -172,8 +182,8 @@ export default function AdminEventForm() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="cover_image">URL imagen de portada</Label>
-            <Input id="cover_image" value={form.cover_image} onChange={(e) => setForm((p) => ({ ...p, cover_image: e.target.value }))} placeholder="https://..." />
+            <Label htmlFor="coverImage">URL imagen de portada</Label>
+            <Input id="coverImage" value={form.coverImage} onChange={(e) => setForm((p) => ({ ...p, coverImage: e.target.value }))} placeholder="https://..." />
           </div>
 
           <div className="space-y-2">
@@ -183,18 +193,18 @@ export default function AdminEventForm() {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="event_date">Fecha *</Label>
-              <Input id="event_date" type="date" value={form.event_date} onChange={(e) => setForm((p) => ({ ...p, event_date: e.target.value }))} required />
+              <Label htmlFor="eventDate">Fecha *</Label>
+              <Input id="eventDate" type="date" value={form.eventDate} onChange={(e) => setForm((p) => ({ ...p, eventDate: e.target.value }))} required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="event_time">Hora</Label>
-              <Input id="event_time" type="time" value={form.event_time} onChange={(e) => setForm((p) => ({ ...p, event_time: e.target.value }))} />
+              <Label htmlFor="eventTime">Hora</Label>
+              <Input id="eventTime" type="time" value={form.eventTime} onChange={(e) => setForm((p) => ({ ...p, eventTime: e.target.value }))} />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="max_attendees">Máximo de asistentes</Label>
-            <Input id="max_attendees" type="number" value={form.max_attendees} onChange={(e) => setForm((p) => ({ ...p, max_attendees: e.target.value }))} placeholder="Sin límite" />
+            <Label htmlFor="maxAttendees">Máximo de asistentes</Label>
+            <Input id="maxAttendees" type="number" value={form.maxAttendees} onChange={(e) => setForm((p) => ({ ...p, maxAttendees: e.target.value }))} placeholder="Sin límite" />
           </div>
 
           <div className="flex items-center justify-between">
@@ -202,7 +212,7 @@ export default function AdminEventForm() {
               <Label>Público</Label>
               <p className="text-xs text-muted-foreground">Visible para todos</p>
             </div>
-            <Switch checked={form.is_public} onCheckedChange={(checked) => setForm((p) => ({ ...p, is_public: checked }))} />
+            <Switch checked={form.isPublic} onCheckedChange={(checked) => setForm((p) => ({ ...p, isPublic: checked }))} />
           </div>
 
           <div className="flex items-center justify-between">
@@ -210,7 +220,7 @@ export default function AdminEventForm() {
               <Label>Requiere verificación</Label>
               <p className="text-xs text-muted-foreground">Solo usuarios verificados</p>
             </div>
-            <Switch checked={form.requires_verification} onCheckedChange={(checked) => setForm((p) => ({ ...p, requires_verification: checked }))} />
+            <Switch checked={form.requiresVerification} onCheckedChange={(checked) => setForm((p) => ({ ...p, requiresVerification: checked }))} />
           </div>
 
           <div className="flex gap-3 pt-2">

@@ -65,6 +65,16 @@ export const makeBrandAdmin = mutation({
   },
 });
 
+// Search users by email substring
+export const searchUsersByEmail = query({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    const users = await ctx.db.query("users").collect();
+    const search = args.email.toLowerCase();
+    return users.filter((u) => u.email.toLowerCase().includes(search)).slice(0, 10);
+  },
+});
+
 // List all users with their roles
 export const listUsersWithRoles = query({
   args: {},

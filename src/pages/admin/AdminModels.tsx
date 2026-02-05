@@ -1,28 +1,27 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { listModelsAdmin, listBrandsAdmin } from '@/lib/adminApi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Search, Pencil, List, Loader2 } from 'lucide-react';
+import type { Id } from '../../../convex/_generated/dataModel';
 
 export default function AdminModels() {
   const [search, setSearch] = useState('');
   const [brandFilter, setBrandFilter] = useState('');
 
-  const { data: models = [], isLoading } = useQuery({
-    queryKey: ['admin', 'models', brandFilter],
-    queryFn: () => listModelsAdmin(brandFilter || undefined),
-  });
+  const models = useQuery(
+    api.cars.listModels,
+    brandFilter ? { brandId: brandFilter as Id<"brands"> } : {}
+  );
+  const brands = useQuery(api.cars.listBrands);
 
-  const { data: brands = [] } = useQuery({
-    queryKey: ['admin', 'brands'],
-    queryFn: listBrandsAdmin,
-  });
+  const isLoading = models === undefined;
 
-  const filtered = models.filter((m) =>
+  const filtered = (models ?? []).filter((m) =>
     m.name.toLowerCase().includes(search.toLowerCase()),
   );
 
@@ -45,8 +44,8 @@ export default function AdminModels() {
             onChange={(e) => setBrandFilter(e.target.value)}
           >
             <option value="">Todas las marcas</option>
-            {brands.map((b) => (
-              <option key={b.id} value={b.id}>{b.name}</option>
+            {(brands ?? []).map((b) => (
+              <option key={b._id} value={b._id}>{b.name}</option>
             ))}
           </select>
         </div>
@@ -80,25 +79,25 @@ export default function AdminModels() {
             </thead>
             <tbody>
               {filtered.map((model) => (
-                <tr key={model.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                <tr key={model._id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
                   <td className="px-4 py-3 font-medium text-foreground">{model.name}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground hidden sm:table-cell">
-                    {(model as any).brand?.name ?? '—'}
+                    {model.brand?.name ?? '—'}
                   </td>
                   <td className="px-4 py-3 hidden md:table-cell">
                     <Badge variant="outline">{model.segment}</Badge>
                   </td>
                   <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">
-                    {model.year_start}{model.year_end ? `–${model.year_end}` : '+'}
+                    {model.yearStart}{model.yearEnd ? `–${model.yearEnd}` : '+'}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
-                      <Link to={`/admin/models/${model.id}`}>
+                      <Link to={`/admin/models/${model._id}`}>
                         <Button variant="ghost" size="icon" className="h-8 w-8" title="Editar">
                           <Pencil className="h-4 w-4" />
                         </Button>
                       </Link>
-                      <Link to={`/admin/models/${model.id}/trims`}>
+                      <Link to={`/admin/models/${model._id}/trims`}>
                         <Button variant="ghost" size="icon" className="h-8 w-8" title="Versiones">
                           <List className="h-4 w-4" />
                         </Button>

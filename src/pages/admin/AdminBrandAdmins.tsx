@@ -1,14 +1,9 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
+import type { Id } from '../../../convex/_generated/dataModel';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import {
-  getBrand,
-  listBrandAdmins,
-  addBrandAdmin,
-  removeBrandAdmin,
-  searchUsersByEmail,
-} from '@/lib/adminApi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,51 +12,38 @@ import { ArrowLeft, Plus, Trash2, Search, Loader2 } from 'lucide-react';
 
 export default function AdminBrandAdmins() {
   const { brandId } = useParams<{ brandId: string }>();
-  const queryClient = useQueryClient();
 
   const [searchEmail, setSearchEmail] = useState('');
-  const [searchResults, setSearchResults] = useState<
-    { id: string; email: string; full_name: string }[]
-  >([]);
-  const [searching, setSearching] = useState(false);
   const [adding, setAdding] = useState(false);
 
-  const { data: brand } = useQuery({
-    queryKey: ['admin', 'brand', brandId],
-    queryFn: () => getBrand(brandId!),
-    enabled: !!brandId,
-  });
+  const brand = useQuery(
+    api.cars.getBrand,
+    brandId ? { brandId: brandId as Id<"brands"> } : 'skip',
+  );
 
-  const { data: admins = [], isLoading } = useQuery({
-    queryKey: ['admin', 'brand-admins', brandId],
-    queryFn: () => listBrandAdmins(brandId!),
-    enabled: !!brandId,
-  });
+  const admins = useQuery(
+    api.settings.listBrandAdmins,
+    brandId ? { brandId: brandId as Id<"brands"> } : 'skip',
+  );
+  const isLoading = admins === undefined;
 
-  const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ['admin', 'brand-admins', brandId] });
-  };
+  const searchResults = useQuery(
+    api.admin.searchUsersByEmail,
+    searchEmail.length >= 3 ? { email: searchEmail } : 'skip',
+  );
+  const searching = searchEmail.length >= 3 && searchResults === undefined;
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!searchEmail.trim()) return;
-
-    setSearching(true);
-    const results = await searchUsersByEmail(searchEmail.trim());
-    setSearchResults(results);
-    setSearching(false);
-
-    if (results.length === 0) {
-      toast.error('No se encontró ningún usuario con ese email');
-    }
-  };
+  const addBrandAdmin = useMutation(api.settings.addBrandAdmin);
+  const removeBrandAdmin = useMutation(api.settings.removeBrandAdmin);
 
   const handleAdd = async (userId: string) => {
+    if (!brandId) return;
     setAdding(true);
     try {
-      await addBrandAdmin(brandId!, userId);
-      invalidate();
-      setSearchResults([]);
+      await addBrandAdmin({
+        brandId: brandId as Id<"brands">,
+        userId,
+      });
       setSearchEmail('');
       toast.success('Brand admin asignado');
     } catch (err: any) {
@@ -75,10 +57,9 @@ export default function AdminBrandAdmins() {
     }
   };
 
-  const handleRemove = async (id: string) => {
+  const handleRemove = async (id: Id<"brandAdmins">) => {
     try {
-      await removeBrandAdmin(id);
-      invalidate();
+      await removeBrandAdmin({ brandAdminId: id });
       toast.success('Brand admin removido');
     } catch (err: any) {
       toast.error('Error', { description: err.message });
@@ -103,7 +84,7 @@ export default function AdminBrandAdmins() {
         <h2 className="text-sm font-semibold text-foreground mb-4">
           Buscar usuario para asignar
         </h2>
-        <form onSubmit={handleSearch} className="flex gap-3">
+        <div className="flex gap-3">
           <div className="flex-1 space-y-2">
             <Label htmlFor="search-email" className="sr-only">
               Email
@@ -113,33 +94,29 @@ export default function AdminBrandAdmins() {
               type="text"
               value={searchEmail}
               onChange={(e) => setSearchEmail(e.target.value)}
-              placeholder="Buscar por email..."
-              required
+              placeholder="Buscar por email (min. 3 caracteres)..."
             />
           </div>
-          <Button type="submit" variant="outline" disabled={searching} className="gap-2">
-            {searching ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Search className="h-4 w-4" />
-            )}
-            Buscar
-          </Button>
-        </form>
+          {searching && (
+            <div className="flex items-center">
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            </div>
+          )}
+        </div>
 
         {/* Search results */}
-        {searchResults.length > 0 && (
+        {(searchResults ?? []).length > 0 && (
           <div className="mt-4 space-y-2">
-            {searchResults.map((user) => {
-              const alreadyAdmin = admins.some((a) => a.user_id === user.id);
+            {(searchResults ?? []).map((user) => {
+              const alreadyAdmin = (admins ?? []).some((a) => a.userId === user._id);
               return (
                 <div
-                  key={user.id}
+                  key={user._id}
                   className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
                 >
                   <div>
                     <p className="text-sm font-medium text-foreground">
-                      {user.full_name}
+                      {user.fullName ?? 'Sin nombre'}
                     </p>
                     <p className="text-xs text-muted-foreground">{user.email}</p>
                   </div>
@@ -149,7 +126,7 @@ export default function AdminBrandAdmins() {
                     <Button
                       size="sm"
                       disabled={adding}
-                      onClick={() => handleAdd(user.id)}
+                      onClick={() => handleAdd(user._id)}
                       className="gap-1"
                     >
                       <Plus className="h-3 w-3" />
@@ -172,7 +149,7 @@ export default function AdminBrandAdmins() {
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      ) : admins.length === 0 ? (
+      ) : (admins ?? []).length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           No hay brand admins asignados
         </div>
@@ -188,18 +165,18 @@ export default function AdminBrandAdmins() {
                   Email
                 </th>
                 <th className="text-right text-sm font-medium text-muted-foreground px-4 py-3">
-                  Acción
+                  Accion
                 </th>
               </tr>
             </thead>
             <tbody>
-              {admins.map((admin) => (
-                <tr key={admin.id} className="border-b last:border-0 hover:bg-muted/30">
+              {(admins ?? []).map((admin) => (
+                <tr key={admin._id} className="border-b last:border-0 hover:bg-muted/30">
                   <td className="px-4 py-3 text-sm font-medium text-foreground">
-                    {admin.profile?.full_name ?? 'Sin nombre'}
+                    {admin.user?.fullName ?? 'Sin nombre'}
                   </td>
                   <td className="px-4 py-3 text-sm text-muted-foreground hidden sm:table-cell">
-                    {admin.profile?.email ?? '—'}
+                    {admin.user?.email ?? '\u2014'}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end">
@@ -208,7 +185,7 @@ export default function AdminBrandAdmins() {
                         size="icon"
                         className="h-8 w-8 text-destructive hover:text-destructive"
                         title="Quitar admin"
-                        onClick={() => handleRemove(admin.id)}
+                        onClick={() => handleRemove(admin._id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

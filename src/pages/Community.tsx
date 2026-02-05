@@ -1,54 +1,57 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+import { useAuth } from '@/hooks/useAuth';
 import { Layout } from '@/components/layout/Layout';
-import { useCommunities, useCommunityPosts, useUserMemberships } from '@/hooks/useSupabase';
-import { joinCommunity, leaveCommunity } from '@/lib/api';
-import { supabase } from '@/lib/supabase';
 import { CreatePostDialog } from '@/components/community/CreatePostDialog';
 import { Button } from '@/components/ui/button';
 import { Users, MessageSquare, Plus, TrendingUp, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
+import type { Id } from '../../convex/_generated/dataModel';
 
 const Community = () => {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const { data: communities = [], isLoading: loadingCommunities } = useCommunities();
-  const { data: posts = [], isLoading: loadingPosts } = useCommunityPosts();
-  const { data: memberships = [], refetch: refetchMemberships } = useUserMemberships();
-  const [user, setUser] = useState<SupabaseUser | null>(null);
-  const [isPostDialogOpen, setIsPostDialogOpen] = useState(false);
-  const [joiningCommunity, setJoiningCommunity] = useState<string | null>(null);
+  const { user, isAuthenticated } = useAuth();
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
-  }, []);
+  const communities = useQuery(api.communities.listCommunities);
+  const posts = useQuery(api.communities.listCommunityPosts, {});
+  const memberships = useQuery(
+    api.communities.getMyMemberships,
+    user?._id ? { userId: user._id } : 'skip'
+  );
+
+  const joinCommunityMutation = useMutation(api.communities.joinCommunity);
+  const leaveCommunityMutation = useMutation(api.communities.leaveCommunity);
+
+  const [isPostDialogOpen, setIsPostDialogOpen] = useState(false);
+  const [joiningCommunity, setJoiningCommunity] = useState<Id<"communities"> | null>(null);
+
+  const loadingCommunities = communities === undefined;
+  const loadingPosts = posts === undefined;
 
   const handleCreatePost = () => {
-    if (!user) {
+    if (!isAuthenticated) {
       navigate('/auth');
       return;
     }
     setIsPostDialogOpen(true);
   };
 
-  const handleJoinLeave = async (communityId: string, isMember: boolean) => {
-    if (!user) {
+  const handleJoinLeave = async (communityId: Id<"communities">, isMember: boolean) => {
+    if (!isAuthenticated || !user) {
       navigate('/auth');
       return;
     }
     setJoiningCommunity(communityId);
     try {
       if (isMember) {
-        await leaveCommunity(communityId);
+        await leaveCommunityMutation({ communityId, userId: user._id });
         toast.success('Saliste de la comunidad');
       } else {
-        await joinCommunity(communityId);
+        await joinCommunityMutation({ communityId, userId: user._id });
         toast.success('Te uniste a la comunidad');
       }
-      refetchMemberships();
-      queryClient.invalidateQueries({ queryKey: ['communities'] });
     } catch (err: any) {
       toast.error('Error', { description: err.message });
     } finally {
@@ -56,8 +59,8 @@ const Community = () => {
     }
   };
 
-  const formatTimeAgo = (dateString: string) => {
-    const date = new Date(dateString);
+  const formatTimeAgo = (timestamp: number) => {
+    const date = new Date(timestamp);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
@@ -117,11 +120,11 @@ const Community = () => {
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
-              ) : posts.length > 0 ? (
+              ) : (posts ?? []).length > 0 ? (
                 <div className="space-y-4">
-                  {posts.map((post) => (
+                  {(posts ?? []).map((post) => (
                     <div
-                      key={post.id}
+                      key={post._id}
                       className="p-4 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
                     >
                       <div className="flex items-start gap-4">
@@ -130,7 +133,7 @@ const Community = () => {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm text-muted-foreground mb-1">
-                            {post.community_name || 'Comunidad'} • {formatTimeAgo(post.created_at)}
+                            {post.community?.name || 'Comunidad'} • {formatTimeAgo(post._creationTime)}
                           </p>
                           <h3 className="font-medium text-foreground mb-2">
                             {post.title}
@@ -139,8 +142,8 @@ const Community = () => {
                             {post.content}
                           </p>
                           <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                            <span>Por {post.author_name || 'Usuario'}</span>
-                            <span>{post.comment_count} comentarios</span>
+                            <span>Por {post.author?.fullName || 'Usuario'}</span>
+                            <span>{post.commentCount ?? 0} comentarios</span>
                           </div>
                         </div>
                       </div>
@@ -151,7 +154,7 @@ const Community = () => {
                 <div className="text-center py-8 text-muted-foreground">
                   <MessageSquare className="h-10 w-10 mx-auto mb-3 opacity-50" />
                   <p>No hay publicaciones aun</p>
-                  {user ? (
+                  {isAuthenticated ? (
                     <Button
                       variant="outline"
                       size="sm"
@@ -170,7 +173,7 @@ const Community = () => {
                 </div>
               )}
 
-              {!user && posts.length > 0 && (
+              {!isAuthenticated && (posts ?? []).length > 0 && (
                 <div className="mt-6 text-center">
                   <p className="text-sm text-muted-foreground mb-4">
                     Inicia sesion para participar en la comunidad
@@ -206,18 +209,18 @@ const Community = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {communities.map((community) => {
-                    const isMember = memberships.includes(community.id);
-                    const isJoining = joiningCommunity === community.id;
+                  {(communities ?? []).map((community) => {
+                    const isMember = memberships?.includes(community._id) ?? false;
+                    const isJoining = joiningCommunity === community._id;
                     return (
                       <div
-                        key={community.id}
+                        key={community._id}
                         className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors"
                       >
                         <div className="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden bg-muted">
-                          {community.cover_image ? (
+                          {community.coverImage ? (
                             <img
-                              src={community.cover_image}
+                              src={community.coverImage}
                               alt={community.name}
                               className="h-full w-full object-cover"
                             />
@@ -232,7 +235,7 @@ const Community = () => {
                             {community.name}
                           </h3>
                           <p className="text-xs text-muted-foreground">
-                            {community.member_count.toLocaleString()} miembros
+                            {community.memberCount.toLocaleString()} miembros
                           </p>
                         </div>
                         <Button
@@ -240,7 +243,7 @@ const Community = () => {
                           variant={isMember ? 'secondary' : 'outline'}
                           className="text-xs"
                           disabled={isJoining}
-                          onClick={() => handleJoinLeave(community.id, isMember)}
+                          onClick={() => handleJoinLeave(community._id, isMember)}
                         >
                           {isJoining ? (
                             <Loader2 className="h-3 w-3 animate-spin" />

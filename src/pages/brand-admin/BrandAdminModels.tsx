@@ -1,27 +1,56 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { BrandAdminLayout } from '@/components/brand-admin/BrandAdminLayout';
 import { useBrandAdmin } from '@/hooks/useBrandAdmin';
-import { listModelsAdmin } from '@/lib/adminApi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Pencil, List, Loader2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Plus, Search, Pencil, List, Loader2, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+import type { Id } from '../../../convex/_generated/dataModel';
 
 export default function BrandAdminModels() {
   const [search, setSearch] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<{ id: Id<"models">; name: string } | null>(null);
   const { brandInfo } = useBrandAdmin();
 
-  const { data: models = [], isLoading } = useQuery({
-    queryKey: ['brand-admin', 'models', brandInfo?.brand_id],
-    queryFn: () => listModelsAdmin(brandInfo!.brand_id),
-    enabled: !!brandInfo?.brand_id,
-  });
+  const brandId = brandInfo?.brand_id as Id<"brands"> | undefined;
 
-  const filtered = models.filter((m) =>
+  const models = useQuery(
+    api.cars.listModels,
+    brandId ? { brandId } : 'skip'
+  );
+
+  const deleteModelMutation = useMutation(api.cars.deleteModel);
+
+  const isLoading = models === undefined;
+  const filtered = (models ?? []).filter((m) =>
     m.name.toLowerCase().includes(search.toLowerCase()),
   );
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteModelMutation({ modelId: deleteTarget.id });
+      toast.success('Modelo eliminado');
+    } catch (err: any) {
+      toast.error('Error', { description: err.message });
+    } finally {
+      setDeleteTarget(null);
+    }
+  };
 
   return (
     <BrandAdminLayout title="Modelos" description="Gestionar modelos de tu marca">
@@ -64,26 +93,35 @@ export default function BrandAdminModels() {
             </thead>
             <tbody>
               {filtered.map((model) => (
-                <tr key={model.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                <tr key={model._id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
                   <td className="px-4 py-3 font-medium text-foreground">{model.name}</td>
                   <td className="px-4 py-3 hidden sm:table-cell">
                     <Badge variant="outline">{model.segment}</Badge>
                   </td>
                   <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">
-                    {model.year_start}{model.year_end ? `–${model.year_end}` : '+'}
+                    {model.yearStart}{model.yearEnd ? `–${model.yearEnd}` : '+'}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
-                      <Link to={`/marca/modelos/${model.id}`}>
+                      <Link to={`/marca/modelos/${model._id}`}>
                         <Button variant="ghost" size="icon" className="h-8 w-8" title="Editar">
                           <Pencil className="h-4 w-4" />
                         </Button>
                       </Link>
-                      <Link to={`/marca/modelos/${model.id}/versiones`}>
+                      <Link to={`/marca/modelos/${model._id}/versiones`}>
                         <Button variant="ghost" size="icon" className="h-8 w-8" title="Versiones">
                           <List className="h-4 w-4" />
                         </Button>
                       </Link>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive"
+                        title="Eliminar"
+                        onClick={() => setDeleteTarget({ id: model._id, name: model.name })}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -92,6 +130,24 @@ export default function BrandAdminModels() {
           </table>
         </div>
       )}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar modelo</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas eliminar el modelo "{deleteTarget?.name}"?
+              Esta acción no se puede deshacer y eliminará también todas las versiones asociadas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </BrandAdminLayout>
   );
 }

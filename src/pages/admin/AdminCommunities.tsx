@@ -1,34 +1,48 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { listCommunitiesAdmin, deleteCommunity } from '@/lib/adminApi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { Search, Plus, Pencil, MessageSquare, Trash2, Loader2 } from 'lucide-react';
+import type { Id } from '../../../convex/_generated/dataModel';
 
 export default function AdminCommunities() {
-  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<{ id: Id<"communities">; name: string } | null>(null);
 
-  const { data: communities = [], isLoading } = useQuery({
-    queryKey: ['admin', 'communities'],
-    queryFn: listCommunitiesAdmin,
-  });
+  const communities = useQuery(api.communities.listCommunities);
+  const deleteCommunityMutation = useMutation(api.communities.deleteCommunity);
 
-  const deleteMutation = useMutation({
-    mutationFn: deleteCommunity,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'communities'] });
-      toast.success('Comunidad eliminada');
-    },
-    onError: (err: any) => toast.error(err.message),
-  });
+  const isLoading = communities === undefined;
 
-  const filtered = communities.filter((c) =>
+  const filtered = (communities ?? []).filter((c) =>
     c.name.toLowerCase().includes(search.toLowerCase()),
   );
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteCommunityMutation({ communityId: deleteTarget.id });
+      toast.success('Comunidad eliminada');
+    } catch (err: any) {
+      toast.error('Error', { description: err.message });
+    } finally {
+      setDeleteTarget(null);
+    }
+  };
 
   return (
     <AdminLayout title="Comunidades" description="Gestionar comunidades del sitio">
@@ -73,31 +87,31 @@ export default function AdminCommunities() {
             </thead>
             <tbody>
               {filtered.map((community) => (
-                <tr key={community.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                <tr key={community._id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
                   <td className="px-4 py-3">
                     <span className="font-medium text-foreground">{community.name}</span>
                     <span className="text-xs text-muted-foreground block">/{community.slug}</span>
                   </td>
                   <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">
-                    {community.brand_name ?? '-'}
+                    {community.brand?.name ?? '-'}
                   </td>
                   <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">
-                    {community.model_name ?? '-'}
+                    {community.model?.name ?? '-'}
                   </td>
                   <td className="px-4 py-3 text-sm text-muted-foreground hidden sm:table-cell">
-                    {community.member_count}
+                    {community.memberCount ?? 0}
                   </td>
                   <td className="px-4 py-3 text-sm text-muted-foreground hidden lg:table-cell">
-                    {new Date(community.created_at).toLocaleDateString('es-UY')}
+                    {new Date(community._creationTime).toLocaleDateString('es-UY')}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
-                      <Link to={`/admin/communities/${community.id}`}>
+                      <Link to={`/admin/communities/${community._id}`}>
                         <Button variant="ghost" size="icon" className="h-8 w-8" title="Editar">
                           <Pencil className="h-4 w-4" />
                         </Button>
                       </Link>
-                      <Link to={`/admin/communities/${community.id}/posts`}>
+                      <Link to={`/admin/communities/${community._id}/posts`}>
                         <Button variant="ghost" size="icon" className="h-8 w-8" title="Posts">
                           <MessageSquare className="h-4 w-4" />
                         </Button>
@@ -107,11 +121,7 @@ export default function AdminCommunities() {
                         size="icon"
                         className="h-8 w-8 text-destructive hover:text-destructive"
                         title="Eliminar"
-                        onClick={() => {
-                          if (confirm('Eliminar esta comunidad?')) {
-                            deleteMutation.mutate(community.id);
-                          }
-                        }}
+                        onClick={() => setDeleteTarget({ id: community._id, name: community.name })}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -123,6 +133,24 @@ export default function AdminCommunities() {
           </table>
         </div>
       )}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar comunidad</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas eliminar la comunidad "{deleteTarget?.name}"?
+              Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 }

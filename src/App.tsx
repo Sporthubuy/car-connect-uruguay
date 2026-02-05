@@ -1,7 +1,6 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Cars from "./pages/Cars";
@@ -54,17 +53,15 @@ import BrandAdminEventForm from "./pages/brand-admin/BrandAdminEventForm";
 import BrandAdminBenefits from "./pages/brand-admin/BrandAdminBenefits";
 import BrandAdminBenefitForm from "./pages/brand-admin/BrandAdminBenefitForm";
 import BrandAdminActivations from "./pages/brand-admin/BrandAdminActivations";
-
-const queryClient = new QueryClient();
+import BrandAdminProfile from "./pages/brand-admin/BrandAdminProfile";
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <ErrorBoundary>
-          <Routes>
+  <TooltipProvider>
+    <Toaster />
+    <Sonner />
+    <BrowserRouter>
+      <ErrorBoundary>
+        <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/autos" element={<Cars />} />
             <Route path="/autos/:id" element={<CarDetail />} />
@@ -106,6 +103,7 @@ const App = () => (
             <Route path="/admin/communities/:communityId/posts" element={<AdminGuard><AdminCommunityPosts /></AdminGuard>} />
             {/* Brand admin routes */}
             <Route path="/marca" element={<BrandAdminGuard><BrandAdminDashboard /></BrandAdminGuard>} />
+            <Route path="/marca/perfil" element={<BrandAdminGuard><BrandAdminProfile /></BrandAdminGuard>} />
             <Route path="/marca/contactos" element={<BrandAdminGuard><BrandAdminContacts /></BrandAdminGuard>} />
             <Route path="/marca/modelos" element={<BrandAdminGuard><BrandAdminModels /></BrandAdminGuard>} />
             <Route path="/marca/modelos/new" element={<BrandAdminGuard><BrandAdminModelForm /></BrandAdminGuard>} />
@@ -130,10 +128,9 @@ const App = () => (
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </ErrorBoundary>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+      </ErrorBoundary>
+    </BrowserRouter>
+  </TooltipProvider>
 );
 
 export default App;

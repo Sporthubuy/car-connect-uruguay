@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+import { useAuth } from '@/hooks/useAuth';
 import { Layout } from '@/components/layout/Layout';
-import { useEvents, useMyRsvps, useRsvpCounts } from '@/hooks/useSupabase';
-import { rsvpToEvent, cancelRsvp } from '@/lib/api';
-import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -18,29 +17,36 @@ import {
   Check,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
+import type { Id } from '../../convex/_generated/dataModel';
 
 const Events = () => {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const { data: events = [], isLoading } = useEvents();
-  const { data: myRsvps = [], refetch: refetchRsvps } = useMyRsvps();
-  const { data: rsvpCounts = {}, refetch: refetchCounts } = useRsvpCounts();
-  const [user, setUser] = useState<SupabaseUser | null>(null);
-  const [processingEvent, setProcessingEvent] = useState<string | null>(null);
+  const { user, isAuthenticated } = useAuth();
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
-  }, []);
+  const events = useQuery(api.events.listEvents, { publicOnly: true });
+  const myRsvps = useQuery(
+    api.events.getMyRsvps,
+    user?._id ? { userId: user._id } : 'skip'
+  );
+  const rsvpCounts = useQuery(api.events.getAllRsvpCounts);
 
-  const handleRsvp = async (eventId: string, isRsvpd: boolean, maxAttendees?: number) => {
-    if (!user) {
+  const rsvpToEventMutation = useMutation(api.events.rsvpToEvent);
+  const cancelRsvpMutation = useMutation(api.events.cancelRsvp);
+
+  const [processingEvent, setProcessingEvent] = useState<Id<"events"> | null>(null);
+
+  const isLoading = events === undefined;
+
+  const handleRsvp = async (eventId: Id<"events">, isRsvpd: boolean, maxAttendees?: number) => {
+    if (!isAuthenticated) {
       navigate('/auth');
       return;
     }
 
+    if (!user) return;
+
     // Check if event is full
-    const currentCount = rsvpCounts[eventId] || 0;
+    const currentCount = rsvpCounts?.[eventId] || 0;
     if (!isRsvpd && maxAttendees && currentCount >= maxAttendees) {
       toast.error('Cupos agotados');
       return;
@@ -49,28 +55,17 @@ const Events = () => {
     setProcessingEvent(eventId);
     try {
       if (isRsvpd) {
-        await cancelRsvp(eventId);
+        await cancelRsvpMutation({ eventId, userId: user._id });
         toast.success('Inscripcion cancelada');
       } else {
-        await rsvpToEvent(eventId);
+        await rsvpToEventMutation({ eventId, userId: user._id });
         toast.success('Inscripcion exitosa!');
       }
-      refetchRsvps();
-      refetchCounts();
     } catch (err: any) {
       toast.error('Error', { description: err.message });
     } finally {
       setProcessingEvent(null);
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('es-UY', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
   };
 
   return (
@@ -101,26 +96,26 @@ const Events = () => {
         <>
         {/* Events Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {events.map((event) => {
-            const isRsvpd = myRsvps.includes(event.id);
-            const currentCount = rsvpCounts[event.id] || 0;
-            const isFull = event.max_attendees ? currentCount >= event.max_attendees : false;
-            const isProcessing = processingEvent === event.id;
+          {(events ?? []).map((event) => {
+            const isRsvpd = myRsvps?.includes(event._id) ?? false;
+            const currentCount = rsvpCounts?.[event._id] || 0;
+            const isFull = event.maxAttendees ? currentCount >= event.maxAttendees : false;
+            const isProcessing = processingEvent === event._id;
 
             return (
               <article
-                key={event.id}
+                key={event._id}
                 className="overflow-hidden rounded-xl bg-card border hover:border-primary/30 hover:shadow-card transition-all duration-300 group"
               >
                 <div className="relative aspect-video overflow-hidden">
                   <img
-                    src={event.cover_image}
+                    src={event.coverImage}
                     alt={event.title}
                     className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                   <div className="absolute top-3 left-3 flex gap-2">
-                    {event.requires_verification ? (
+                    {event.requiresVerification ? (
                       <Badge className="bg-primary text-primary-foreground border-0">
                         <Lock className="h-3 w-3 mr-1" />
                         Verificados
@@ -135,7 +130,7 @@ const Events = () => {
                     <div className="flex items-center gap-2 text-white text-sm">
                       <Calendar className="h-4 w-4" />
                       <span className="font-medium">
-                        {new Date(event.event_date).toLocaleDateString('es-UY', {
+                        {new Date(event.eventDate).toLocaleDateString('es-UY', {
                           day: 'numeric',
                           month: 'short',
                         })}
@@ -157,18 +152,18 @@ const Events = () => {
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Clock className="h-4 w-4 flex-shrink-0" />
-                      <span>{event.event_time} hs</span>
+                      <span>{event.eventTime} hs</span>
                     </div>
-                    {event.max_attendees && (
+                    {event.maxAttendees && (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Users className="h-4 w-4 flex-shrink-0" />
                         <span>
-                          {currentCount}/{event.max_attendees} inscriptos
+                          {currentCount}/{event.maxAttendees} inscriptos
                         </span>
                       </div>
                     )}
                   </div>
-                  {event.requires_verification ? (
+                  {event.requiresVerification ? (
                     <div className="space-y-2">
                       <p className="text-xs text-muted-foreground">
                         Evento exclusivo para usuarios verificados
@@ -185,7 +180,7 @@ const Events = () => {
                       className="w-full"
                       variant="secondary"
                       disabled={isProcessing}
-                      onClick={() => handleRsvp(event.id, true)}
+                      onClick={() => handleRsvp(event._id, true)}
                     >
                       {isProcessing ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -210,7 +205,7 @@ const Events = () => {
                       size="sm"
                       className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
                       disabled={isProcessing}
-                      onClick={() => handleRsvp(event.id, false, event.max_attendees)}
+                      onClick={() => handleRsvp(event._id, false, event.maxAttendees)}
                     >
                       {isProcessing ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -225,7 +220,7 @@ const Events = () => {
           })}
         </div>
 
-        {events.length === 0 && (
+        {(events ?? []).length === 0 && (
           <div className="text-center py-16">
             <CalendarDays className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-foreground mb-2">

@@ -1,10 +1,9 @@
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { CarCard } from '@/components/cars/CarCard';
-import { useCars, useReviews, useBrands } from '@/hooks/useSupabase';
-import { getSiteSettings } from '@/lib/adminApi';
 import {
   ArrowRight,
   Car,
@@ -50,20 +49,28 @@ const HERO_DEFAULTS: Record<string, string> = {
   hero_cta_secondary_link: '/reviews',
 };
 
+const HERO_KEYS = [
+  'hero_badge',
+  'hero_title',
+  'hero_subtitle',
+  'hero_cta_primary_text',
+  'hero_cta_primary_link',
+  'hero_cta_secondary_text',
+  'hero_cta_secondary_link',
+];
+
 const Index = () => {
-  const { data: allCars = [], isLoading: carsLoading } = useCars();
-  const { data: reviews = [] } = useReviews();
-  const { data: brands = [] } = useBrands();
-  const { data: siteSettings } = useQuery({
-    queryKey: ['site-settings'],
-    queryFn: getSiteSettings,
-    staleTime: 1000 * 60 * 5,
-  });
+  const allCars = useQuery(api.cars.listCarsWithDetails);
+  const reviews = useQuery(api.reviews.listReviews, { publishedOnly: true });
+  const brands = useQuery(api.cars.listBrands, { activeOnly: true });
+  const siteSettings = useQuery(api.settings.getSettings, { keys: HERO_KEYS });
+
+  const carsLoading = allCars === undefined;
 
   const hero = (key: string) =>
     (siteSettings?.[key] as string) || HERO_DEFAULTS[key] || '';
 
-  const featuredCars = allCars.filter((car) => car.is_featured).slice(0, 4);
+  const featuredCars = (allCars ?? []).filter((car) => car.isFeatured).slice(0, 4);
 
   return (
     <Layout>
@@ -121,15 +128,15 @@ const Index = () => {
             </Link>
           </div>
           <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
-            {brands.map((brand) => (
+            {(brands ?? []).map((brand) => (
               <Link
-                key={brand.id}
+                key={brand._id}
                 to={`/autos?brand=${brand.slug}`}
                 className="flex flex-col items-center justify-center p-4 rounded-xl bg-card border border-border hover:border-primary/30 hover:shadow-card transition-all duration-300"
               >
-                {brand.logo_url ? (
+                {brand.logoUrl ? (
                   <img
-                    src={brand.logo_url}
+                    src={brand.logoUrl}
                     alt={brand.name}
                     className="h-10 w-auto object-contain mb-2 grayscale hover:grayscale-0 transition-all"
                   />
@@ -173,7 +180,7 @@ const Index = () => {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {featuredCars.map((car) => (
-                <CarCard key={car.id} car={car} />
+                <CarCard key={car._id} car={car} />
               ))}
             </div>
           )}
@@ -219,7 +226,7 @@ const Index = () => {
       </section>
 
       {/* Latest Reviews */}
-      {reviews.length > 0 && (
+      {(reviews ?? []).length > 0 && (
         <section className="py-16 bg-muted/30">
           <div className="container-wide">
             <div className="flex items-end justify-between mb-8">
@@ -239,16 +246,16 @@ const Index = () => {
               </Link>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {reviews.slice(0, 3).map((review) => (
+              {(reviews ?? []).slice(0, 3).map((review) => (
                 <Link
-                  key={review.id}
+                  key={review._id}
                   to={`/reviews/${review.slug}`}
                   className="group"
                 >
                   <article className="overflow-hidden rounded-xl bg-card border border-border hover:border-primary/30 hover:shadow-card transition-all duration-300">
                     <div className="aspect-video overflow-hidden">
                       <img
-                        src={review.cover_image}
+                        src={review.coverImage}
                         alt={review.title}
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />

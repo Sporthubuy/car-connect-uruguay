@@ -1,45 +1,60 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { listCommentsAdmin, approveComment, deleteComment } from '@/lib/adminApi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { Search, CheckCircle, Trash2, Loader2 } from 'lucide-react';
+import type { Id } from '../../../convex/_generated/dataModel';
 
 export default function AdminComments() {
-  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<{ id: Id<"comments">; content: string } | null>(null);
 
-  const { data: comments = [], isLoading } = useQuery({
-    queryKey: ['admin', 'comments'],
-    queryFn: () => listCommentsAdmin(),
-  });
+  const comments = useQuery(api.reviews.listAllComments);
+  const approveCommentMutation = useMutation(api.reviews.approveComment);
+  const deleteCommentMutation = useMutation(api.reviews.deleteComment);
 
-  const approveMutation = useMutation({
-    mutationFn: approveComment,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'comments'] });
-      toast.success('Comentario aprobado');
-    },
-    onError: (err: any) => toast.error(err.message),
-  });
+  const isLoading = comments === undefined;
 
-  const deleteMutation = useMutation({
-    mutationFn: deleteComment,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'comments'] });
-      toast.success('Comentario eliminado');
-    },
-    onError: (err: any) => toast.error(err.message),
-  });
-
-  const filtered = comments.filter(
+  const filtered = (comments ?? []).filter(
     (c) =>
       c.content.toLowerCase().includes(search.toLowerCase()) ||
-      (c.post_title ?? '').toLowerCase().includes(search.toLowerCase()),
+      (c.postTitle ?? '').toLowerCase().includes(search.toLowerCase()),
   );
+
+  const handleApprove = async (commentId: Id<"comments">) => {
+    try {
+      await approveCommentMutation({ commentId });
+      toast.success('Comentario aprobado');
+    } catch (err: any) {
+      toast.error('Error', { description: err.message });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteCommentMutation({ commentId: deleteTarget.id });
+      toast.success('Comentario eliminado');
+    } catch (err: any) {
+      toast.error('Error', { description: err.message });
+    } finally {
+      setDeleteTarget(null);
+    }
+  };
 
   return (
     <AdminLayout title="Comentarios" description="Moderar comentarios de reviews">
@@ -78,35 +93,35 @@ export default function AdminComments() {
             </thead>
             <tbody>
               {filtered.map((comment) => (
-                <tr key={comment.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                <tr key={comment._id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
                   <td className="px-4 py-3">
                     <span className="text-sm text-foreground line-clamp-2 max-w-xs">
                       {comment.content}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">
-                    <span className="line-clamp-1 max-w-[200px]">{comment.post_title ?? '-'}</span>
+                    <span className="line-clamp-1 max-w-[200px]">{comment.postTitle ?? '-'}</span>
                   </td>
                   <td className="px-4 py-3 text-sm text-muted-foreground hidden sm:table-cell">
-                    {comment.author_name ?? '-'}
+                    {comment.authorName ?? '-'}
                   </td>
                   <td className="px-4 py-3">
-                    <Badge variant={comment.is_approved ? 'default' : 'secondary'}>
-                      {comment.is_approved ? 'Aprobado' : 'Pendiente'}
+                    <Badge variant={comment.isApproved ? 'default' : 'secondary'}>
+                      {comment.isApproved ? 'Aprobado' : 'Pendiente'}
                     </Badge>
                   </td>
                   <td className="px-4 py-3 text-sm text-muted-foreground hidden lg:table-cell">
-                    {new Date(comment.created_at).toLocaleDateString('es-UY')}
+                    {new Date(comment._creationTime).toLocaleDateString('es-UY')}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
-                      {!comment.is_approved && (
+                      {!comment.isApproved && (
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-green-600 hover:text-green-700"
                           title="Aprobar"
-                          onClick={() => approveMutation.mutate(comment.id)}
+                          onClick={() => handleApprove(comment._id)}
                         >
                           <CheckCircle className="h-4 w-4" />
                         </Button>
@@ -116,11 +131,7 @@ export default function AdminComments() {
                         size="icon"
                         className="h-8 w-8 text-destructive hover:text-destructive"
                         title="Eliminar"
-                        onClick={() => {
-                          if (confirm('Eliminar este comentario?')) {
-                            deleteMutation.mutate(comment.id);
-                          }
-                        }}
+                        onClick={() => setDeleteTarget({ id: comment._id, content: comment.content.slice(0, 50) })}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -132,6 +143,24 @@ export default function AdminComments() {
           </table>
         </div>
       )}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar comentario</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas eliminar este comentario?
+              Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 }

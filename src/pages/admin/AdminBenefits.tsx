@@ -1,35 +1,47 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { listBenefitsAdmin, deleteBenefit } from '@/lib/adminApi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Plus, Search, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import type { Id } from '../../../convex/_generated/dataModel';
 
 export default function AdminBenefits() {
   const [search, setSearch] = useState('');
-  const queryClient = useQueryClient();
+  const [deleteTarget, setDeleteTarget] = useState<{ id: Id<"benefits">; title: string } | null>(null);
 
-  const { data: benefits = [], isLoading } = useQuery({
-    queryKey: ['admin', 'benefits'],
-    queryFn: () => listBenefitsAdmin(),
-  });
+  const benefits = useQuery(api.activations.listBenefits);
+  const deleteBenefitMutation = useMutation(api.activations.deleteBenefit);
 
-  const filtered = benefits.filter((b) =>
+  const isLoading = benefits === undefined;
+
+  const filtered = (benefits ?? []).filter((b) =>
     b.title.toLowerCase().includes(search.toLowerCase()),
   );
 
-  const handleDelete = async (id: string, title: string) => {
-    if (!confirm(`Eliminar beneficio "${title}"?`)) return;
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await deleteBenefit(id);
+      await deleteBenefitMutation({ benefitId: deleteTarget.id });
       toast.success('Beneficio eliminado');
-      queryClient.invalidateQueries({ queryKey: ['admin', 'benefits'] });
     } catch (err: any) {
       toast.error('Error', { description: err.message });
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -75,22 +87,22 @@ export default function AdminBenefits() {
             </thead>
             <tbody>
               {filtered.map((benefit) => (
-                <tr key={benefit.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                <tr key={benefit._id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
                   <td className="px-4 py-3 font-medium text-foreground">{benefit.title}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground hidden sm:table-cell">
-                    {(benefit as any).brand?.name ?? '—'}
+                    {benefit.brand?.name ?? '—'}
                   </td>
                   <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">
-                    {new Date(benefit.valid_from).toLocaleDateString('es-UY')} – {new Date(benefit.valid_until).toLocaleDateString('es-UY')}
+                    {new Date(benefit.validFrom).toLocaleDateString('es-UY')} – {new Date(benefit.validUntil).toLocaleDateString('es-UY')}
                   </td>
                   <td className="px-4 py-3">
-                    <Badge variant={benefit.is_active ? 'default' : 'secondary'}>
-                      {benefit.is_active ? 'Activo' : 'Inactivo'}
+                    <Badge variant={benefit.isActive ? 'default' : 'secondary'}>
+                      {benefit.isActive ? 'Activo' : 'Inactivo'}
                     </Badge>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
-                      <Link to={`/admin/benefits/${benefit.id}`}>
+                      <Link to={`/admin/benefits/${benefit._id}`}>
                         <Button variant="ghost" size="icon" className="h-8 w-8" title="Editar">
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -100,7 +112,7 @@ export default function AdminBenefits() {
                         size="icon"
                         className="h-8 w-8 text-destructive"
                         title="Eliminar"
-                        onClick={() => handleDelete(benefit.id, benefit.title)}
+                        onClick={() => setDeleteTarget({ id: benefit._id, title: benefit.title })}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -112,6 +124,24 @@ export default function AdminBenefits() {
           </table>
         </div>
       )}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar beneficio</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas eliminar el beneficio "{deleteTarget?.title}"?
+              Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 }

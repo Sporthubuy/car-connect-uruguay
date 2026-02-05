@@ -1,63 +1,56 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import {
-  getCommunity,
-  createCommunity,
-  updateCommunity,
-  listBrandsAdmin,
-  listModelsAdmin,
-} from '@/lib/adminApi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { ArrowLeft, Loader2 } from 'lucide-react';
+import type { Id } from '../../../convex/_generated/dataModel';
 
 export default function AdminCommunityForm() {
   const { communityId } = useParams<{ communityId: string }>();
   const isEdit = communityId && communityId !== 'new';
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
 
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     name: '',
     slug: '',
     description: '',
-    cover_image: '',
-    brand_id: '',
-    model_id: '',
+    coverImage: '',
+    brandId: '',
+    modelId: '',
   });
 
-  const { data: community, isLoading } = useQuery({
-    queryKey: ['admin', 'community', communityId],
-    queryFn: () => getCommunity(communityId!),
-    enabled: !!isEdit,
-  });
+  const community = useQuery(
+    api.communities.getCommunity,
+    isEdit ? { communityId: communityId as Id<"communities"> } : 'skip'
+  );
 
-  const { data: brands = [] } = useQuery({
-    queryKey: ['admin', 'brands'],
-    queryFn: listBrandsAdmin,
-  });
+  const brands = useQuery(api.cars.listBrands);
+  const models = useQuery(
+    api.cars.listModels,
+    form.brandId ? { brandId: form.brandId as Id<"brands"> } : 'skip'
+  );
 
-  const { data: models = [] } = useQuery({
-    queryKey: ['admin', 'models', form.brand_id],
-    queryFn: () => listModelsAdmin(form.brand_id || undefined),
-    enabled: !!form.brand_id,
-  });
+  const createCommunityMutation = useMutation(api.communities.createCommunity);
+  const updateCommunityMutation = useMutation(api.communities.updateCommunity);
+
+  const isLoading = isEdit && community === undefined;
 
   useEffect(() => {
     if (community) {
       setForm({
         name: community.name,
         slug: community.slug,
-        description: community.description,
-        cover_image: community.cover_image ?? '',
-        brand_id: community.brand_id ?? '',
-        model_id: community.model_id ?? '',
+        description: community.description ?? '',
+        coverImage: community.coverImage ?? '',
+        brandId: community.brandId ?? '',
+        modelId: community.modelId ?? '',
       });
     }
   }, [community]);
@@ -88,24 +81,29 @@ export default function AdminCommunityForm() {
 
     setSaving(true);
     try {
-      const payload = {
-        name: form.name.trim(),
-        slug: form.slug.trim(),
-        description: form.description.trim(),
-        cover_image: form.cover_image.trim() || null,
-        brand_id: form.brand_id || null,
-        model_id: form.model_id || null,
-      };
-
       if (isEdit) {
-        await updateCommunity(communityId!, payload);
+        await updateCommunityMutation({
+          communityId: communityId as Id<"communities">,
+          name: form.name.trim(),
+          slug: form.slug.trim(),
+          description: form.description.trim() || undefined,
+          coverImage: form.coverImage.trim() || undefined,
+          brandId: form.brandId ? (form.brandId as Id<"brands">) : undefined,
+          modelId: form.modelId ? (form.modelId as Id<"models">) : undefined,
+        });
         toast.success('Comunidad actualizada');
       } else {
-        await createCommunity(payload);
+        await createCommunityMutation({
+          name: form.name.trim(),
+          slug: form.slug.trim(),
+          description: form.description.trim() || undefined,
+          coverImage: form.coverImage.trim() || undefined,
+          brandId: form.brandId ? (form.brandId as Id<"brands">) : undefined,
+          modelId: form.modelId ? (form.modelId as Id<"models">) : undefined,
+        });
         toast.success('Comunidad creada');
       }
 
-      queryClient.invalidateQueries({ queryKey: ['admin', 'communities'] });
       navigate('/admin/communities');
     } catch (err: any) {
       toast.error('Error', {
@@ -180,44 +178,44 @@ export default function AdminCommunityForm() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="cover_image">Imagen de portada (URL)</Label>
+            <Label htmlFor="coverImage">Imagen de portada (URL)</Label>
             <Input
-              id="cover_image"
-              value={form.cover_image}
-              onChange={(e) => setForm((prev) => ({ ...prev, cover_image: e.target.value }))}
+              id="coverImage"
+              value={form.coverImage}
+              onChange={(e) => setForm((prev) => ({ ...prev, coverImage: e.target.value }))}
               placeholder="https://..."
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="brand_id">Marca (opcional)</Label>
+            <Label htmlFor="brandId">Marca (opcional)</Label>
             <select
-              id="brand_id"
+              id="brandId"
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={form.brand_id}
-              onChange={(e) => setForm((prev) => ({ ...prev, brand_id: e.target.value, model_id: '' }))}
+              value={form.brandId}
+              onChange={(e) => setForm((prev) => ({ ...prev, brandId: e.target.value, modelId: '' }))}
             >
               <option value="">Sin marca</option>
-              {brands.map((b) => (
-                <option key={b.id} value={b.id}>
+              {(brands ?? []).map((b) => (
+                <option key={b._id} value={b._id}>
                   {b.name}
                 </option>
               ))}
             </select>
           </div>
 
-          {form.brand_id && (
+          {form.brandId && (
             <div className="space-y-2">
-              <Label htmlFor="model_id">Modelo (opcional)</Label>
+              <Label htmlFor="modelId">Modelo (opcional)</Label>
               <select
-                id="model_id"
+                id="modelId"
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={form.model_id}
-                onChange={(e) => setForm((prev) => ({ ...prev, model_id: e.target.value }))}
+                value={form.modelId}
+                onChange={(e) => setForm((prev) => ({ ...prev, modelId: e.target.value }))}
               >
                 <option value="">Sin modelo</option>
-                {models.map((m) => (
-                  <option key={m.id} value={m.id}>
+                {(models ?? []).map((m) => (
+                  <option key={m._id} value={m._id}>
                     {m.name}
                   </option>
                 ))}

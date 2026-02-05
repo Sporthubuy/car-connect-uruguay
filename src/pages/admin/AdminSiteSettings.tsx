@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { getSiteSettings, updateSiteSetting } from '@/lib/adminApi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,20 +20,20 @@ const HERO_FIELDS = [
 ] as const;
 
 export default function AdminSiteSettings() {
-  const queryClient = useQueryClient();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<Record<string, string>>({});
 
-  const { data: settings, isLoading } = useQuery({
-    queryKey: ['admin', 'site-settings'],
-    queryFn: getSiteSettings,
-  });
+  const settings = useQuery(api.settings.getAllSettings);
+  const setSettingMutation = useMutation(api.settings.setSetting);
+
+  const isLoading = settings === undefined;
 
   useEffect(() => {
     if (settings) {
       const initial: Record<string, string> = {};
       for (const field of HERO_FIELDS) {
-        initial[field.key] = typeof settings[field.key] === 'string' ? settings[field.key] : '';
+        const setting = settings.find((s) => s.key === field.key);
+        initial[field.key] = typeof setting?.value === 'string' ? setting.value : '';
       }
       setForm(initial);
     }
@@ -44,10 +44,8 @@ export default function AdminSiteSettings() {
     setSaving(true);
     try {
       for (const field of HERO_FIELDS) {
-        await updateSiteSetting(field.key, form[field.key] ?? '');
+        await setSettingMutation({ key: field.key, value: form[field.key] ?? '' });
       }
-      queryClient.invalidateQueries({ queryKey: ['admin', 'site-settings'] });
-      queryClient.invalidateQueries({ queryKey: ['site-settings'] });
       toast.success('Configuracion guardada');
     } catch (err: any) {
       toast.error('Error al guardar', { description: err.message });

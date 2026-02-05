@@ -27,6 +27,27 @@ export const listEventsByBrand = query({
   },
 });
 
+// List upcoming events by brand (dashboard widget)
+export const listUpcomingEventsByBrand = query({
+  args: { brandId: v.id("brands"), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 5;
+    const today = new Date().toISOString().split("T")[0];
+
+    const events = await ctx.db
+      .query("events")
+      .withIndex("by_brand", (q) => q.eq("brandId", args.brandId))
+      .collect();
+
+    const upcoming = events
+      .filter((e) => e.eventDate >= today)
+      .sort((a, b) => a.eventDate.localeCompare(b.eventDate))
+      .slice(0, limit);
+
+    return upcoming;
+  },
+});
+
 // Get event by ID
 export const getEvent = query({
   args: { eventId: v.id("events") },

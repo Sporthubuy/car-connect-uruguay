@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { getTrim, createTrim, updateTrim } from '@/lib/adminApi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import type { FuelType } from '@/types';
+import type { Id } from '../../../convex/_generated/dataModel';
 
 const FUEL_TYPES: FuelType[] = ['gasolina', 'diesel', 'hibrido', 'electrico', 'gnc'];
 
@@ -17,38 +18,39 @@ export default function AdminTrimForm() {
   const { modelId, trimId } = useParams<{ modelId?: string; trimId?: string }>();
   const isEdit = !!trimId;
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
 
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     name: '',
     slug: '',
     year: new Date().getFullYear(),
-    price_usd: 0,
+    priceUsd: 0,
     engine: '',
     transmission: '',
-    fuel_type: 'gasolina' as FuelType,
+    fuelType: 'gasolina' as FuelType,
     horsepower: 0,
     torque: '',
-    acceleration_0_100: '',
-    top_speed: '',
-    fuel_consumption: '',
+    acceleration0100: '',
+    topSpeed: '',
+    fuelConsumption: '',
     doors: 4,
     seats: 5,
-    trunk_capacity: '',
+    trunkCapacity: '',
     features: '',
     images: '',
-    is_featured: false,
+    isFeatured: false,
   });
 
-  const { data: trim, isLoading } = useQuery({
-    queryKey: ['admin', 'trim', trimId],
-    queryFn: () => getTrim(trimId!),
-    enabled: !!isEdit,
-  });
+  const trim = useQuery(
+    api.cars.getTrim,
+    isEdit ? { trimId: trimId as Id<"trims"> } : 'skip'
+  );
+  const isLoading = isEdit && trim === undefined;
 
-  // Resolve the actual modelId for navigation
-  const resolvedModelId = modelId ?? trim?.model_id;
+  const resolvedModelId = modelId ?? (trim?.modelId as string | undefined);
+
+  const createTrimMutation = useMutation(api.cars.createTrim);
+  const updateTrimMutation = useMutation(api.cars.updateTrim);
 
   useEffect(() => {
     if (trim) {
@@ -56,21 +58,21 @@ export default function AdminTrimForm() {
         name: trim.name,
         slug: trim.slug,
         year: trim.year,
-        price_usd: trim.price_usd,
+        priceUsd: trim.priceUsd,
         engine: trim.engine,
         transmission: trim.transmission,
-        fuel_type: trim.fuel_type,
+        fuelType: trim.fuelType as FuelType,
         horsepower: trim.horsepower,
         torque: trim.torque?.toString() ?? '',
-        acceleration_0_100: trim.acceleration_0_100?.toString() ?? '',
-        top_speed: trim.top_speed?.toString() ?? '',
-        fuel_consumption: trim.fuel_consumption?.toString() ?? '',
+        acceleration0100: trim.acceleration0100?.toString() ?? '',
+        topSpeed: trim.topSpeed?.toString() ?? '',
+        fuelConsumption: trim.fuelConsumption?.toString() ?? '',
         doors: trim.doors,
         seats: trim.seats,
-        trunk_capacity: trim.trunk_capacity?.toString() ?? '',
+        trunkCapacity: trim.trunkCapacity?.toString() ?? '',
         features: trim.features.join(', '),
         images: trim.images.join('\n'),
-        is_featured: trim.is_featured,
+        isFeatured: trim.isFeatured,
       });
     }
   }, [trim]);
@@ -93,47 +95,65 @@ export default function AdminTrimForm() {
       return;
     }
 
-    const targetModelId = modelId ?? trim?.model_id;
-    if (!targetModelId) {
+    if (!resolvedModelId) {
       toast.error('No se pudo determinar el modelo');
       return;
     }
 
     setSaving(true);
     try {
-      const payload = {
-        model_id: targetModelId,
-        name: form.name.trim(),
-        slug: form.slug.trim(),
-        year: Number(form.year),
-        price_usd: Number(form.price_usd),
-        engine: form.engine.trim(),
-        transmission: form.transmission.trim(),
-        fuel_type: form.fuel_type,
-        horsepower: Number(form.horsepower),
-        torque: form.torque ? Number(form.torque) : null,
-        acceleration_0_100: form.acceleration_0_100 ? Number(form.acceleration_0_100) : null,
-        top_speed: form.top_speed ? Number(form.top_speed) : null,
-        fuel_consumption: form.fuel_consumption ? Number(form.fuel_consumption) : null,
-        doors: Number(form.doors),
-        seats: Number(form.seats),
-        trunk_capacity: form.trunk_capacity ? Number(form.trunk_capacity) : null,
-        features: form.features ? form.features.split(',').map((f) => f.trim()).filter(Boolean) : [],
-        images: form.images ? form.images.split('\n').map((u) => u.trim()).filter(Boolean) : [],
-        is_featured: form.is_featured,
-      };
+      const features = form.features ? form.features.split(',').map((f) => f.trim()).filter(Boolean) : [];
+      const images = form.images ? form.images.split('\n').map((u) => u.trim()).filter(Boolean) : [];
 
       if (isEdit) {
-        const { model_id: _, ...updates } = payload;
-        await updateTrim(trimId!, updates);
+        await updateTrimMutation({
+          trimId: trimId as Id<"trims">,
+          name: form.name.trim(),
+          slug: form.slug.trim(),
+          year: Number(form.year),
+          priceUsd: Number(form.priceUsd),
+          engine: form.engine.trim(),
+          transmission: form.transmission.trim(),
+          fuelType: form.fuelType,
+          horsepower: Number(form.horsepower),
+          torque: form.torque ? Number(form.torque) : undefined,
+          acceleration0100: form.acceleration0100 ? Number(form.acceleration0100) : undefined,
+          topSpeed: form.topSpeed ? Number(form.topSpeed) : undefined,
+          fuelConsumption: form.fuelConsumption ? Number(form.fuelConsumption) : undefined,
+          doors: Number(form.doors),
+          seats: Number(form.seats),
+          trunkCapacity: form.trunkCapacity ? Number(form.trunkCapacity) : undefined,
+          features,
+          images,
+          isFeatured: form.isFeatured,
+        });
         toast.success('Versión actualizada');
       } else {
-        await createTrim(payload);
+        await createTrimMutation({
+          modelId: resolvedModelId as Id<"models">,
+          name: form.name.trim(),
+          slug: form.slug.trim(),
+          year: Number(form.year),
+          priceUsd: Number(form.priceUsd),
+          engine: form.engine.trim(),
+          transmission: form.transmission.trim(),
+          fuelType: form.fuelType,
+          horsepower: Number(form.horsepower),
+          torque: form.torque ? Number(form.torque) : undefined,
+          acceleration0100: form.acceleration0100 ? Number(form.acceleration0100) : undefined,
+          topSpeed: form.topSpeed ? Number(form.topSpeed) : undefined,
+          fuelConsumption: form.fuelConsumption ? Number(form.fuelConsumption) : undefined,
+          doors: Number(form.doors),
+          seats: Number(form.seats),
+          trunkCapacity: form.trunkCapacity ? Number(form.trunkCapacity) : undefined,
+          features,
+          images,
+          isFeatured: form.isFeatured,
+        });
         toast.success('Versión creada');
       }
 
-      queryClient.invalidateQueries({ queryKey: ['admin', 'trims'] });
-      navigate(`/admin/models/${targetModelId}/trims`);
+      navigate(`/admin/models/${resolvedModelId}/trims`);
     } catch (err: any) {
       toast.error('Error', { description: err.message });
     } finally {
@@ -167,7 +187,6 @@ export default function AdminTrimForm() {
       </Link>
 
       <form onSubmit={handleSubmit} className="max-w-2xl space-y-6">
-        {/* Basic info */}
         <div className="rounded-xl border bg-card p-6 space-y-5">
           <h3 className="font-semibold text-foreground">Información básica</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -184,13 +203,12 @@ export default function AdminTrimForm() {
               <Input id="year" type="number" value={form.year} onChange={(e) => setForm((p) => ({ ...p, year: Number(e.target.value) }))} required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="price_usd">Precio USD *</Label>
-              <Input id="price_usd" type="number" value={form.price_usd} onChange={(e) => setForm((p) => ({ ...p, price_usd: Number(e.target.value) }))} required />
+              <Label htmlFor="priceUsd">Precio USD *</Label>
+              <Input id="priceUsd" type="number" value={form.priceUsd} onChange={(e) => setForm((p) => ({ ...p, priceUsd: Number(e.target.value) }))} required />
             </div>
           </div>
         </div>
 
-        {/* Engine */}
         <div className="rounded-xl border bg-card p-6 space-y-5">
           <h3 className="font-semibold text-foreground">Motor y rendimiento</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -203,12 +221,12 @@ export default function AdminTrimForm() {
               <Input id="transmission" value={form.transmission} onChange={(e) => setForm((p) => ({ ...p, transmission: e.target.value }))} placeholder="Ej: CVT" required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="fuel_type">Combustible</Label>
+              <Label htmlFor="fuelType">Combustible</Label>
               <select
-                id="fuel_type"
+                id="fuelType"
                 className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={form.fuel_type}
-                onChange={(e) => setForm((p) => ({ ...p, fuel_type: e.target.value as FuelType }))}
+                value={form.fuelType}
+                onChange={(e) => setForm((p) => ({ ...p, fuelType: e.target.value as FuelType }))}
               >
                 {FUEL_TYPES.map((f) => (
                   <option key={f} value={f}>{f.charAt(0).toUpperCase() + f.slice(1)}</option>
@@ -224,21 +242,20 @@ export default function AdminTrimForm() {
               <Input id="torque" type="number" value={form.torque} onChange={(e) => setForm((p) => ({ ...p, torque: e.target.value }))} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="acceleration_0_100">0-100 km/h (seg)</Label>
-              <Input id="acceleration_0_100" type="number" step="0.1" value={form.acceleration_0_100} onChange={(e) => setForm((p) => ({ ...p, acceleration_0_100: e.target.value }))} />
+              <Label htmlFor="acceleration0100">0-100 km/h (seg)</Label>
+              <Input id="acceleration0100" type="number" step="0.1" value={form.acceleration0100} onChange={(e) => setForm((p) => ({ ...p, acceleration0100: e.target.value }))} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="top_speed">Vel. máxima (km/h)</Label>
-              <Input id="top_speed" type="number" value={form.top_speed} onChange={(e) => setForm((p) => ({ ...p, top_speed: e.target.value }))} />
+              <Label htmlFor="topSpeed">Vel. máxima (km/h)</Label>
+              <Input id="topSpeed" type="number" value={form.topSpeed} onChange={(e) => setForm((p) => ({ ...p, topSpeed: e.target.value }))} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="fuel_consumption">Consumo (L/100km)</Label>
-              <Input id="fuel_consumption" type="number" step="0.1" value={form.fuel_consumption} onChange={(e) => setForm((p) => ({ ...p, fuel_consumption: e.target.value }))} />
+              <Label htmlFor="fuelConsumption">Consumo (L/100km)</Label>
+              <Input id="fuelConsumption" type="number" step="0.1" value={form.fuelConsumption} onChange={(e) => setForm((p) => ({ ...p, fuelConsumption: e.target.value }))} />
             </div>
           </div>
         </div>
 
-        {/* Body */}
         <div className="rounded-xl border bg-card p-6 space-y-5">
           <h3 className="font-semibold text-foreground">Carrocería</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -251,13 +268,12 @@ export default function AdminTrimForm() {
               <Input id="seats" type="number" value={form.seats} onChange={(e) => setForm((p) => ({ ...p, seats: Number(e.target.value) }))} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="trunk_capacity">Baúl (litros)</Label>
-              <Input id="trunk_capacity" type="number" value={form.trunk_capacity} onChange={(e) => setForm((p) => ({ ...p, trunk_capacity: e.target.value }))} />
+              <Label htmlFor="trunkCapacity">Baúl (litros)</Label>
+              <Input id="trunkCapacity" type="number" value={form.trunkCapacity} onChange={(e) => setForm((p) => ({ ...p, trunkCapacity: e.target.value }))} />
             </div>
           </div>
         </div>
 
-        {/* Extras */}
         <div className="rounded-xl border bg-card p-6 space-y-5">
           <h3 className="font-semibold text-foreground">Extras</h3>
           <div className="space-y-4">
@@ -280,10 +296,7 @@ export default function AdminTrimForm() {
                 <Label>Destacada</Label>
                 <p className="text-xs text-muted-foreground">Mostrar como versión destacada</p>
               </div>
-              <Switch
-                checked={form.is_featured}
-                onCheckedChange={(checked) => setForm((p) => ({ ...p, is_featured: checked }))}
-              />
+              <Switch checked={form.isFeatured} onCheckedChange={(checked) => setForm((p) => ({ ...p, isFeatured: checked }))} />
             </div>
           </div>
         </div>

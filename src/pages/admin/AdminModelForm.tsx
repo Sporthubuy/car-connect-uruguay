@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { getModel, createModel, updateModel, listBrandsAdmin } from '@/lib/adminApi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import type { CarSegment } from '@/types';
+import type { Id } from '../../../convex/_generated/dataModel';
 
 const SEGMENTS: CarSegment[] = ['sedan', 'hatchback', 'suv', 'crossover', 'pickup', 'coupe', 'convertible', 'wagon', 'van', 'sports'];
 
@@ -16,38 +17,37 @@ export default function AdminModelForm() {
   const { modelId } = useParams<{ modelId: string }>();
   const isEdit = modelId && modelId !== 'new';
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
 
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
-    brand_id: '',
+    brandId: '',
     name: '',
     slug: '',
     segment: 'sedan' as CarSegment,
-    year_start: new Date().getFullYear(),
-    year_end: '' as string | number,
+    yearStart: new Date().getFullYear(),
+    yearEnd: '' as string | number,
   });
 
-  const { data: brands = [] } = useQuery({
-    queryKey: ['admin', 'brands'],
-    queryFn: listBrandsAdmin,
-  });
+  const brands = useQuery(api.cars.listBrands);
+  const model = useQuery(
+    api.cars.getModel,
+    isEdit ? { modelId: modelId as Id<"models"> } : 'skip'
+  );
 
-  const { data: model, isLoading } = useQuery({
-    queryKey: ['admin', 'model', modelId],
-    queryFn: () => getModel(modelId!),
-    enabled: !!isEdit,
-  });
+  const createModelMutation = useMutation(api.cars.createModel);
+  const updateModelMutation = useMutation(api.cars.updateModel);
+
+  const isLoading = isEdit && model === undefined;
 
   useEffect(() => {
     if (model) {
       setForm({
-        brand_id: model.brand_id,
+        brandId: model.brandId,
         name: model.name,
         slug: model.slug,
-        segment: model.segment,
-        year_start: model.year_start,
-        year_end: model.year_end ?? '',
+        segment: model.segment as CarSegment,
+        yearStart: model.yearStart,
+        yearEnd: model.yearEnd ?? '',
       });
     }
   }, [model]);
@@ -65,31 +65,35 @@ export default function AdminModelForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.brand_id || !form.name.trim() || !form.slug.trim()) {
+    if (!form.brandId || !form.name.trim() || !form.slug.trim()) {
       toast.error('Marca, nombre y slug son obligatorios');
       return;
     }
 
     setSaving(true);
     try {
-      const payload = {
-        brand_id: form.brand_id,
-        name: form.name.trim(),
-        slug: form.slug.trim(),
-        segment: form.segment,
-        year_start: Number(form.year_start),
-        year_end: form.year_end ? Number(form.year_end) : null,
-      };
-
       if (isEdit) {
-        await updateModel(modelId!, payload);
+        await updateModelMutation({
+          modelId: modelId as Id<"models">,
+          name: form.name.trim(),
+          slug: form.slug.trim(),
+          segment: form.segment,
+          yearStart: Number(form.yearStart),
+          yearEnd: form.yearEnd ? Number(form.yearEnd) : undefined,
+        });
         toast.success('Modelo actualizado');
       } else {
-        await createModel(payload);
+        await createModelMutation({
+          brandId: form.brandId as Id<"brands">,
+          name: form.name.trim(),
+          slug: form.slug.trim(),
+          segment: form.segment,
+          yearStart: Number(form.yearStart),
+          yearEnd: form.yearEnd ? Number(form.yearEnd) : undefined,
+        });
         toast.success('Modelo creado');
       }
 
-      queryClient.invalidateQueries({ queryKey: ['admin', 'models'] });
       navigate('/admin/models');
     } catch (err: any) {
       toast.error('Error', { description: err.message });
@@ -124,17 +128,17 @@ export default function AdminModelForm() {
       <form onSubmit={handleSubmit} className="max-w-lg">
         <div className="rounded-xl border bg-card p-6 space-y-5">
           <div className="space-y-2">
-            <Label htmlFor="brand_id">Marca *</Label>
+            <Label htmlFor="brandId">Marca *</Label>
             <select
-              id="brand_id"
+              id="brandId"
               className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={form.brand_id}
-              onChange={(e) => setForm((prev) => ({ ...prev, brand_id: e.target.value }))}
+              value={form.brandId}
+              onChange={(e) => setForm((prev) => ({ ...prev, brandId: e.target.value }))}
               required
             >
               <option value="">Seleccionar marca</option>
-              {brands.map((b) => (
-                <option key={b.id} value={b.id}>{b.name}</option>
+              {(brands ?? []).map((b) => (
+                <option key={b._id} value={b._id}>{b.name}</option>
               ))}
             </select>
           </div>
@@ -177,22 +181,22 @@ export default function AdminModelForm() {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="year_start">Año inicio *</Label>
+              <Label htmlFor="yearStart">Año inicio *</Label>
               <Input
-                id="year_start"
+                id="yearStart"
                 type="number"
-                value={form.year_start}
-                onChange={(e) => setForm((prev) => ({ ...prev, year_start: Number(e.target.value) }))}
+                value={form.yearStart}
+                onChange={(e) => setForm((prev) => ({ ...prev, yearStart: Number(e.target.value) }))}
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="year_end">Año fin</Label>
+              <Label htmlFor="yearEnd">Año fin</Label>
               <Input
-                id="year_end"
+                id="yearEnd"
                 type="number"
-                value={form.year_end}
-                onChange={(e) => setForm((prev) => ({ ...prev, year_end: e.target.value }))}
+                value={form.yearEnd}
+                onChange={(e) => setForm((prev) => ({ ...prev, yearEnd: e.target.value }))}
                 placeholder="En producción"
               />
             </div>

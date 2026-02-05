@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { listActivationsAdmin, updateActivationStatus } from '@/lib/adminApi';
-import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ActivationStatus } from '@/types';
+import type { Id } from '../../../convex/_generated/dataModel';
 
 const STATUS_TABS: { value: string; label: string }[] = [
   { value: '', label: 'Todos' },
@@ -34,24 +34,30 @@ const statusLabel = (s: ActivationStatus) => {
 
 export default function AdminActivations() {
   const [statusFilter, setStatusFilter] = useState('');
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
 
-  const { data: activations = [], isLoading } = useQuery({
-    queryKey: ['admin', 'activations'],
-    queryFn: () => listActivationsAdmin(),
-  });
+  const activations = useQuery(api.activations.listActivations);
+  const verifyMutation = useMutation(api.activations.verifyActivation);
+  const rejectMutation = useMutation(api.activations.rejectActivation);
 
-  const filtered = activations.filter((a) =>
+  const isLoading = activations === undefined;
+
+  const filtered = (activations ?? []).filter((a) =>
     !statusFilter || a.status === statusFilter,
   );
 
-  const handleStatus = async (id: string, status: ActivationStatus) => {
-    if (!user) return;
+  const handleVerify = async (id: Id<"vehicleActivations">) => {
     try {
-      await updateActivationStatus(id, status, user.id);
-      toast.success(status === 'verified' ? 'Activación verificada' : 'Activación rechazada');
-      queryClient.invalidateQueries({ queryKey: ['admin', 'activations'] });
+      await verifyMutation({ activationId: id });
+      toast.success('Activación verificada');
+    } catch (err: any) {
+      toast.error('Error', { description: err.message });
+    }
+  };
+
+  const handleReject = async (id: Id<"vehicleActivations">) => {
+    try {
+      await rejectMutation({ activationId: id });
+      toast.success('Activación rechazada');
     } catch (err: any) {
       toast.error('Error', { description: err.message });
     }
@@ -97,28 +103,28 @@ export default function AdminActivations() {
             </thead>
             <tbody>
               {filtered.map((activation) => (
-                <tr key={activation.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                <tr key={activation._id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
                   <td className="px-4 py-3">
-                    <div className="font-medium text-foreground text-sm">{activation.profile_name ?? '—'}</div>
-                    <div className="text-xs text-muted-foreground">{activation.profile_email}</div>
+                    <div className="font-medium text-foreground text-sm">{activation.user?.fullName ?? '—'}</div>
+                    <div className="text-xs text-muted-foreground">{activation.user?.email}</div>
                   </td>
                   <td className="px-4 py-3 text-sm text-muted-foreground hidden sm:table-cell">
-                    {activation.brand_name ?? '—'}
+                    {activation.brand?.name ?? '—'}
                   </td>
                   <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">
-                    {activation.model_name ?? '—'}
+                    {activation.model?.name ?? '—'}
                   </td>
                   <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">{activation.year}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground hidden lg:table-cell font-mono">
                     {activation.vin}
                   </td>
                   <td className="px-4 py-3">
-                    <Badge variant={statusVariant(activation.status)}>
-                      {statusLabel(activation.status)}
+                    <Badge variant={statusVariant(activation.status as ActivationStatus)}>
+                      {statusLabel(activation.status as ActivationStatus)}
                     </Badge>
                   </td>
                   <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">
-                    {new Date(activation.created_at).toLocaleDateString('es-UY')}
+                    {new Date(activation._creationTime).toLocaleDateString('es-UY')}
                   </td>
                   <td className="px-4 py-3">
                     {activation.status === 'pending' && (
@@ -128,7 +134,7 @@ export default function AdminActivations() {
                           size="icon"
                           className="h-8 w-8 text-green-600"
                           title="Verificar"
-                          onClick={() => handleStatus(activation.id, 'verified')}
+                          onClick={() => handleVerify(activation._id)}
                         >
                           <CheckCircle className="h-4 w-4" />
                         </Button>
@@ -137,7 +143,7 @@ export default function AdminActivations() {
                           size="icon"
                           className="h-8 w-8 text-destructive"
                           title="Rechazar"
-                          onClick={() => handleStatus(activation.id, 'rejected')}
+                          onClick={() => handleReject(activation._id)}
                         >
                           <XCircle className="h-4 w-4" />
                         </Button>
