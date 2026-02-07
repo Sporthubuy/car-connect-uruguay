@@ -120,9 +120,9 @@ export function CarFiltersComponent({
       <div className="space-y-2">
         <Label className="text-xs text-muted-foreground">Marca</Label>
         <Select
-          value={filters.brand || ''}
+          value={filters.brand || '__all__'}
           onValueChange={(v) => {
-            updateFilter('brand', v);
+            updateFilter('brand', v === '__all__' ? undefined : v);
             updateFilter('model', undefined);
           }}
         >
@@ -130,7 +130,7 @@ export function CarFiltersComponent({
             <SelectValue placeholder="Todas las marcas" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todas las marcas</SelectItem>
+            <SelectItem value="__all__">Todas las marcas</SelectItem>
             {brands.map((brand) => (
               <SelectItem key={brand._id} value={brand.slug}>
                 {brand.name}
@@ -144,15 +144,15 @@ export function CarFiltersComponent({
       <div className="space-y-2">
         <Label className="text-xs text-muted-foreground">Modelo</Label>
         <Select
-          value={filters.model || ''}
-          onValueChange={(v) => updateFilter('model', v)}
+          value={filters.model || '__all__'}
+          onValueChange={(v) => updateFilter('model', v === '__all__' ? undefined : v)}
           disabled={!filters.brand}
         >
           <SelectTrigger className="h-9">
             <SelectValue placeholder="Todos los modelos" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todos los modelos</SelectItem>
+            <SelectItem value="__all__">Todos los modelos</SelectItem>
             {filteredModels.map((model) => (
               <SelectItem key={model._id} value={model.slug}>
                 {model.name}
@@ -166,14 +166,14 @@ export function CarFiltersComponent({
       <div className="space-y-2">
         <Label className="text-xs text-muted-foreground">Segmento</Label>
         <Select
-          value={filters.segment || ''}
-          onValueChange={(v) => updateFilter('segment', v)}
+          value={filters.segment || '__all__'}
+          onValueChange={(v) => updateFilter('segment', v === '__all__' ? undefined : v)}
         >
           <SelectTrigger className="h-9">
             <SelectValue placeholder="Todos los segmentos" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todos los segmentos</SelectItem>
+            <SelectItem value="__all__">Todos los segmentos</SelectItem>
             {segmentOptions.map((option) => (
               <SelectItem key={option.value} value={option.value}>
                 {option.label}
@@ -187,14 +187,14 @@ export function CarFiltersComponent({
       <div className="space-y-2">
         <Label className="text-xs text-muted-foreground">Combustible</Label>
         <Select
-          value={filters.fuelType || ''}
-          onValueChange={(v) => updateFilter('fuelType', v)}
+          value={filters.fuelType || '__all__'}
+          onValueChange={(v) => updateFilter('fuelType', v === '__all__' ? undefined : v)}
         >
           <SelectTrigger className="h-9">
             <SelectValue placeholder="Todos" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todos</SelectItem>
+            <SelectItem value="__all__">Todos</SelectItem>
             {fuelTypeOptions.map((option) => (
               <SelectItem key={option.value} value={option.value}>
                 {option.label}

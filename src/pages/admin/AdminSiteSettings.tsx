@@ -32,8 +32,7 @@ export default function AdminSiteSettings() {
     if (settings) {
       const initial: Record<string, string> = {};
       for (const field of HERO_FIELDS) {
-        const setting = settings.find((s) => s.key === field.key);
-        initial[field.key] = typeof setting?.value === 'string' ? setting.value : '';
+        initial[field.key] = settings[field.key] ?? '';
       }
       setForm(initial);
     }
