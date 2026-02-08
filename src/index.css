@@ -6,112 +6,112 @@
 
 @layer base {
   :root {
-    /* Facebook-inspired Design System */
-    --background: 220 17% 95%;
-    --foreground: 216 9% 11%;
+    /* Carwow-inspired Design System - Clean & Professional */
+    --background: 0 0% 98%;
+    --foreground: 0 0% 9%;
 
     --card: 0 0% 100%;
-    --card-foreground: 216 9% 11%;
+    --card-foreground: 0 0% 9%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 216 9% 11%;
+    --popover-foreground: 0 0% 9%;
 
-    /* Facebook Blue */
-    --primary: 214 89% 52%;
+    /* Professional Blue - Trust & Premium */
+    --primary: 217 91% 50%;
     --primary-foreground: 0 0% 100%;
 
-    /* Light gray secondary */
-    --secondary: 220 14% 93%;
-    --secondary-foreground: 214 89% 45%;
+    /* Neutral grays */
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 0 0% 25%;
 
     --muted: 220 14% 96%;
-    --muted-foreground: 216 3% 41%;
+    --muted-foreground: 0 0% 45%;
 
-    /* Facebook Blue as accent (consistent branding) */
-    --accent: 214 89% 52%;
+    /* Orange accent for CTAs and highlights */
+    --accent: 25 95% 53%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 358 95% 60%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214 9% 86%;
-    --input: 214 9% 86%;
-    --ring: 214 89% 52%;
+    --border: 0 0% 88%;
+    --input: 0 0% 88%;
+    --ring: 217 91% 50%;
 
-    --radius: 0.5rem;
+    --radius: 0.625rem;
 
     /* Custom tokens */
-    --success: 111 64% 44%;
+    --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
 
     --warning: 38 92% 50%;
-    --warning-foreground: 216 9% 11%;
+    --warning-foreground: 0 0% 9%;
 
-    /* Facebook-style Gradients */
-    --gradient-hero: linear-gradient(135deg, hsl(214 89% 52%) 0%, hsl(214 89% 45%) 100%);
-    --gradient-accent: linear-gradient(135deg, hsl(214 89% 52%) 0%, hsl(230 70% 55%) 100%);
+    /* Clean Gradients */
+    --gradient-hero: linear-gradient(135deg, hsl(217 91% 50%) 0%, hsl(217 91% 40%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(25 95% 53%) 0%, hsl(15 90% 50%) 100%);
     --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(220 14% 98%) 100%);
-    --gradient-blue: linear-gradient(135deg, hsl(214 89% 52%) 0%, hsl(214 89% 60%) 100%);
-    --gradient-soft: linear-gradient(135deg, hsl(220 14% 96%) 0%, hsl(220 14% 94%) 100%);
+    --gradient-blue: linear-gradient(135deg, hsl(217 91% 50%) 0%, hsl(217 91% 60%) 100%);
+    --gradient-soft: linear-gradient(135deg, hsl(0 0% 98%) 0%, hsl(0 0% 96%) 100%);
 
-    /* Clean Facebook-style shadows */
+    /* Carwow-style subtle shadows */
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    --shadow-md: 0 1px 2px 0 rgb(0 0 0 / 0.1);
-    --shadow-lg: 0 2px 12px 0 rgb(0 0 0 / 0.15);
-    --shadow-xl: 0 4px 24px 0 rgb(0 0 0 / 0.15);
-    --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.1);
-    --shadow-card-hover: 0 4px 12px 0 rgb(0 0 0 / 0.15);
-    --shadow-glow: 0 0 0 2px hsl(214 89% 52% / 0.2);
+    --shadow-md: 0 2px 4px 0 rgb(0 0 0 / 0.06), 0 1px 2px 0 rgb(0 0 0 / 0.04);
+    --shadow-lg: 0 4px 16px 0 rgb(0 0 0 / 0.08);
+    --shadow-xl: 0 8px 32px 0 rgb(0 0 0 / 0.12);
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px 0 rgb(0 0 0 / 0.04);
+    --shadow-card-hover: 0 8px 24px 0 rgb(0 0 0 / 0.12);
+    --shadow-glow: 0 0 0 3px hsl(217 91% 50% / 0.15);
 
     /* Sidebar */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 216 9% 11%;
-    --sidebar-primary: 214 89% 52%;
+    --sidebar-foreground: 0 0% 9%;
+    --sidebar-primary: 217 91% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 220 14% 96%;
-    --sidebar-accent-foreground: 214 89% 45%;
-    --sidebar-border: 214 9% 90%;
-    --sidebar-ring: 214 89% 52%;
+    --sidebar-accent-foreground: 0 0% 25%;
+    --sidebar-border: 0 0% 92%;
+    --sidebar-ring: 217 91% 50%;
   }
 
   .dark {
-    /* Facebook Dark Mode */
-    --background: 210 4% 10%;
-    --foreground: 210 17% 95%;
+    /* Dark Mode - Clean & Modern */
+    --background: 0 0% 7%;
+    --foreground: 0 0% 95%;
 
-    --card: 210 2% 14%;
-    --card-foreground: 210 17% 95%;
+    --card: 0 0% 11%;
+    --card-foreground: 0 0% 95%;
 
-    --popover: 210 2% 14%;
-    --popover-foreground: 210 17% 95%;
+    --popover: 0 0% 11%;
+    --popover-foreground: 0 0% 95%;
 
-    --primary: 214 89% 55%;
+    --primary: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 2% 20%;
-    --secondary-foreground: 210 17% 90%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 85%;
 
-    --muted: 210 2% 18%;
-    --muted-foreground: 210 10% 60%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 55%;
 
-    --accent: 214 89% 55%;
+    --accent: 25 95% 58%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 358 95% 60%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 210 2% 25%;
-    --input: 210 2% 25%;
-    --ring: 214 89% 55%;
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 217 91% 60%;
 
-    --sidebar-background: 210 2% 12%;
-    --sidebar-foreground: 210 17% 90%;
-    --sidebar-primary: 214 89% 55%;
+    --sidebar-background: 0 0% 9%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-primary: 217 91% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 2% 18%;
-    --sidebar-accent-foreground: 210 17% 90%;
-    --sidebar-border: 210 2% 22%;
-    --sidebar-ring: 214 89% 55%;
+    --sidebar-accent: 0 0% 15%;
+    --sidebar-accent-foreground: 0 0% 85%;
+    --sidebar-border: 0 0% 18%;
+    --sidebar-ring: 217 91% 60%;
   }
 }
 
@@ -172,33 +172,34 @@
     background-image: var(--gradient-blue);
   }
 
-  /* Car card styles */
+  /* Car card styles - Carwow inspired */
   .car-card {
-    @apply relative overflow-hidden rounded-2xl bg-card border border-border/50 transition-all duration-300;
+    @apply relative overflow-hidden rounded-xl bg-card transition-all duration-200;
+    border: 1px solid rgba(0, 0, 0, 0.12);
     box-shadow: var(--shadow-card);
   }
 
   .car-card:hover {
     box-shadow: var(--shadow-card-hover);
-    transform: translateY(-6px);
-    @apply border-primary/20;
+    transform: translateY(-4px);
+    border-color: rgba(0, 0, 0, 0.16);
   }
 
-  /* Badge styles - Facebook style */
+  /* Badge styles - Clean & Professional */
   .badge-new {
-    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold;
+    @apply inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold;
     background: hsl(var(--success));
     color: hsl(var(--success-foreground));
   }
 
   .badge-featured {
-    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold;
-    background: hsl(var(--primary));
-    color: hsl(var(--primary-foreground));
+    @apply inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold;
+    background: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
   }
 
   .badge-premium {
-    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold;
+    @apply inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold;
     background: hsl(var(--primary));
     color: white;
   }
