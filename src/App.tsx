@@ -54,6 +54,7 @@ import BrandAdminBenefits from "./pages/brand-admin/BrandAdminBenefits";
 import BrandAdminBenefitForm from "./pages/brand-admin/BrandAdminBenefitForm";
 import BrandAdminActivations from "./pages/brand-admin/BrandAdminActivations";
 import BrandAdminProfile from "./pages/brand-admin/BrandAdminProfile";
+import BrandAdminLogin from "./pages/brand-admin/BrandAdminLogin";
 
 const App = () => (
   <TooltipProvider>
@@ -102,6 +103,7 @@ const App = () => (
             <Route path="/admin/communities/:communityId" element={<AdminGuard><AdminCommunityForm /></AdminGuard>} />
             <Route path="/admin/communities/:communityId/posts" element={<AdminGuard><AdminCommunityPosts /></AdminGuard>} />
             {/* Brand admin routes */}
+            <Route path="/marca/login" element={<BrandAdminLogin />} />
             <Route path="/marca" element={<BrandAdminGuard><BrandAdminDashboard /></BrandAdminGuard>} />
             <Route path="/marca/perfil" element={<BrandAdminGuard><BrandAdminProfile /></BrandAdminGuard>} />
             <Route path="/marca/contactos" element={<BrandAdminGuard><BrandAdminContacts /></BrandAdminGuard>} />

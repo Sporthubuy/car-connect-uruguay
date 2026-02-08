@@ -8,16 +8,21 @@ import { useAuth } from '@/hooks/useAuth';
 
 const Auth = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, isBrandAdmin, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState('login');
 
-  // Redirect if already logged in - all users go to profile
-  // Admins and brand admins can access their panels via header buttons
+  // Redirect if already logged in - route based on role
   useEffect(() => {
     if (!loading && isAuthenticated) {
-      navigate('/perfil');
+      if (isBrandAdmin) {
+        navigate('/marca');
+      } else if (isAdmin) {
+        navigate('/admin');
+      } else {
+        navigate('/perfil');
+      }
     }
-  }, [isAuthenticated, loading, navigate]);
+  }, [isAuthenticated, loading, isBrandAdmin, isAdmin, navigate]);
 
   return (
     <Layout>

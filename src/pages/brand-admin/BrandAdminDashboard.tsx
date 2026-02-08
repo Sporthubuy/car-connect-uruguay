@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import {
   Building2,
   Car,
-  Mail,
   MessageSquare,
   Calendar,
   Gift,
@@ -16,6 +15,9 @@ import {
   Plus,
   AlertCircle,
   ArrowRight,
+  CheckCircle2,
+  Circle,
+  Eye,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -30,6 +32,131 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import type { Id } from '../../../convex/_generated/dataModel';
+
+// Welcome banner with onboarding checklist
+function WelcomeBanner({
+  hasModels,
+  hasEvents,
+  hasBenefits,
+  brandName
+}: {
+  hasModels: boolean;
+  hasEvents: boolean;
+  hasBenefits: boolean;
+  brandName: string;
+}) {
+  const steps = [
+    {
+      label: 'Agregar modelos',
+      href: '/marca/modelos/new',
+      completed: hasModels,
+      description: 'Añade los modelos de vehículos de tu marca'
+    },
+    {
+      label: 'Crear un evento',
+      href: '/marca/eventos/new',
+      completed: hasEvents,
+      description: 'Organiza test drives, lanzamientos o exhibiciones'
+    },
+    {
+      label: 'Configurar beneficios',
+      href: '/marca/beneficios/new',
+      completed: hasBenefits,
+      description: 'Define descuentos y beneficios exclusivos'
+    },
+  ];
+
+  const allCompleted = steps.every((s) => s.completed);
+  const completedCount = steps.filter((s) => s.completed).length;
+
+  if (allCompleted) return null;
+
+  return (
+    <div className="rounded-xl border bg-gradient-to-br from-primary/5 via-primary/10 to-accent/5 p-6 mb-6">
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">
+            ¡Bienvenido, {brandName}!
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Completa estos pasos para aprovechar al máximo tu panel
+          </p>
+        </div>
+        <div className="text-sm font-medium text-muted-foreground">
+          {completedCount}/{steps.length} completados
+        </div>
+      </div>
+      <div className="space-y-3">
+        {steps.map((step) => (
+          <Link
+            key={step.href}
+            to={step.href}
+            className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
+              step.completed
+                ? 'bg-green-50 dark:bg-green-950/30 cursor-default'
+                : 'bg-background hover:bg-muted/50'
+            }`}
+          >
+            {step.completed ? (
+              <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0" />
+            ) : (
+              <Circle className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+            )}
+            <div className="flex-1 min-w-0">
+              <p className={`font-medium text-sm ${step.completed ? 'text-green-700 dark:text-green-300 line-through' : 'text-foreground'}`}>
+                {step.label}
+              </p>
+              <p className="text-xs text-muted-foreground truncate">{step.description}</p>
+            </div>
+            {!step.completed && (
+              <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            )}
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Quick actions panel
+function QuickActions({ newLeadsCount }: { newLeadsCount: number }) {
+  return (
+    <div className="rounded-xl border bg-card p-6 mb-6">
+      <h3 className="font-semibold text-foreground mb-4">Acciones rápidas</h3>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Link to="/marca/modelos/new">
+          <Button className="w-full gap-2 h-auto py-3 flex-col" size="lg">
+            <Plus className="h-5 w-5" />
+            <span>Nuevo Modelo</span>
+          </Button>
+        </Link>
+        <Link to="/marca/eventos/new">
+          <Button variant="outline" className="w-full gap-2 h-auto py-3 flex-col" size="lg">
+            <Calendar className="h-5 w-5" />
+            <span>Nuevo Evento</span>
+          </Button>
+        </Link>
+        <Link to="/marca/beneficios/new">
+          <Button variant="outline" className="w-full gap-2 h-auto py-3 flex-col" size="lg">
+            <Gift className="h-5 w-5" />
+            <span>Nuevo Beneficio</span>
+          </Button>
+        </Link>
+        <Link to="/marca/leads">
+          <Button variant="ghost" className="w-full gap-2 h-auto py-3 flex-col relative" size="lg">
+            <Eye className="h-5 w-5" />
+            <span>Ver Leads</span>
+            {newLeadsCount > 0 && (
+              <span className="absolute top-1 right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-red-500 rounded-full">
+                {newLeadsCount > 9 ? '9+' : newLeadsCount}
+              </span>
+            )}
+          </Button>
+        </Link>
+      </div>
+    </div>
+  );
+}
 
 export default function BrandAdminDashboard() {
   const { brandInfo } = useBrandAdmin();
@@ -56,7 +183,18 @@ export default function BrandAdminDashboard() {
     brandId ? { brandId, limit: 5 } : 'skip'
   );
 
+  // Get count of new leads for quick actions badge
+  const newLeadsCount = useQuery(
+    api.leads.countNewLeadsByBrand,
+    brandId ? { brandId } : 'skip'
+  );
+
   const isLoading = stats === undefined;
+
+  // Check what the brand has set up for the welcome banner
+  const hasModels = (stats?.models ?? 0) > 0;
+  const hasEvents = (stats?.events ?? 0) > 0;
+  const hasBenefits = (stats?.benefits ?? 0) > 0;
 
   const cards = [
     { name: 'Modelos', href: '/marca/modelos', icon: Car, count: stats?.models, badge: stats?.trims ? `${stats.trims} versiones` : null },
@@ -68,44 +206,43 @@ export default function BrandAdminDashboard() {
 
   return (
     <BrandAdminLayout title="Dashboard" description="Panel de administración de tu marca">
-      {/* Brand info + Quick actions */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-        <div className="flex items-center gap-4">
-          {brandInfo?.brand_logo_url ? (
-            <img
-              src={brandInfo.brand_logo_url}
-              alt={brandInfo.brand_name}
-              className="h-12 w-12 rounded-lg object-contain bg-white border"
-            />
-          ) : (
-            <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
-              <Building2 className="h-6 w-6 text-muted-foreground" />
-            </div>
-          )}
-          <div>
-            <h2 className="text-lg font-semibold text-foreground">
-              {brandInfo?.brand_name ?? 'Cargando...'}
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              /{brandInfo?.brand_slug}
-            </p>
+      {/* Brand info header */}
+      <div className="flex items-center gap-4 mb-6">
+        {brandInfo?.brand_logo_url ? (
+          <img
+            src={brandInfo.brand_logo_url}
+            alt={brandInfo.brand_name}
+            className="h-12 w-12 rounded-lg object-contain bg-white border"
+          />
+        ) : (
+          <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
+            <Building2 className="h-6 w-6 text-muted-foreground" />
           </div>
-        </div>
-        <div className="flex gap-2">
-          <Link to="/marca/modelos/new">
-            <Button size="sm" className="gap-2">
-              <Plus className="h-4 w-4" />
-              Nuevo Modelo
-            </Button>
-          </Link>
-          <Link to="/marca/eventos/new">
-            <Button size="sm" variant="outline" className="gap-2">
-              <Plus className="h-4 w-4" />
-              Nuevo Evento
-            </Button>
-          </Link>
+        )}
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">
+            {brandInfo?.brand_name ?? 'Cargando...'}
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            /{brandInfo?.brand_slug}
+          </p>
         </div>
       </div>
+
+      {/* Welcome banner with onboarding checklist */}
+      {!isLoading && (
+        <WelcomeBanner
+          hasModels={hasModels}
+          hasEvents={hasEvents}
+          hasBenefits={hasBenefits}
+          brandName={brandInfo?.brand_name ?? 'tu marca'}
+        />
+      )}
+
+      {/* Quick actions */}
+      {!isLoading && (
+        <QuickActions newLeadsCount={newLeadsCount ?? 0} />
+      )}
 
       {/* Pending activations alert */}
       {stats?.pendingActivations && stats.pendingActivations > 0 && (

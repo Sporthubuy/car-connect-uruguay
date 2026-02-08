@@ -172,6 +172,30 @@ export const deleteLead = mutation({
   },
 });
 
+// Count new leads by brand (for notification badge)
+export const countNewLeadsByBrand = query({
+  args: { brandId: v.id("brands") },
+  handler: async (ctx, args) => {
+    const models = await ctx.db
+      .query("models")
+      .withIndex("by_brand", (q) => q.eq("brandId", args.brandId))
+      .collect();
+
+    const modelIds = models.map((m) => m._id);
+
+    const allTrims = await ctx.db.query("trims").collect();
+    const brandTrims = allTrims.filter((t) => modelIds.includes(t.modelId));
+    const trimIds = brandTrims.map((t) => t._id);
+
+    const allLeads = await ctx.db.query("leads").collect();
+    const newLeads = allLeads.filter(
+      (l) => trimIds.includes(l.carId) && l.status === "new"
+    );
+
+    return newLeads.length;
+  },
+});
+
 // Get lead stats
 export const getLeadStats = query({
   args: {},

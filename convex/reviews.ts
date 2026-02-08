@@ -169,6 +169,38 @@ export const incrementViews = mutation({
   },
 });
 
+// Get most read reviews of the current month
+export const getMostReadThisMonth = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 5;
+
+    // Get start of current month
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+
+    // Get all published reviews
+    const reviews = await ctx.db.query("reviewPosts").collect();
+
+    // Filter to only published reviews from this month (or all time if none this month)
+    let filtered = reviews.filter(
+      (r) => r.publishedAt && r.publishedAt >= startOfMonth
+    );
+
+    // If no reviews this month, show all-time most read
+    if (filtered.length === 0) {
+      filtered = reviews.filter((r) => r.publishedAt);
+    }
+
+    // Sort by views descending and take top N
+    const sorted = filtered
+      .sort((a, b) => (b.views ?? 0) - (a.views ?? 0))
+      .slice(0, limit);
+
+    return sorted;
+  },
+});
+
 // ============ COMMENTS ============
 
 export const listComments = query({

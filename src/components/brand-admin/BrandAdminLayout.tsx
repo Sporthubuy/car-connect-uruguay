@@ -1,18 +1,22 @@
 import { Link, useLocation } from 'react-router-dom';
+import { useQuery } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { cn } from '@/lib/utils';
 import { useBrandAdmin } from '@/hooks/useBrandAdmin';
 import {
   LayoutDashboard,
-  Mail,
   ArrowLeft,
   Loader2,
   Car,
+  Mail,
   MessageSquare,
   Calendar,
   Gift,
   ShieldCheck,
   Building2,
+  Bell,
 } from 'lucide-react';
+import type { Id } from '../../../convex/_generated/dataModel';
 
 const brandAdminNav = [
   { name: 'Dashboard', href: '/marca', icon: LayoutDashboard },
@@ -34,6 +38,14 @@ interface BrandAdminLayoutProps {
 export function BrandAdminLayout({ children, title, description }: BrandAdminLayoutProps) {
   const location = useLocation();
   const { brandInfo, loading } = useBrandAdmin();
+
+  const brandId = brandInfo?.brand_id as Id<"brands"> | undefined;
+
+  // Get count of new leads for notification badge
+  const newLeadsCount = useQuery(
+    api.leads.countNewLeadsByBrand,
+    brandId ? { brandId } : 'skip'
+  );
 
   const isActive = (href: string) => {
     if (href === '/marca') return location.pathname === '/marca';
@@ -72,6 +84,21 @@ export function BrandAdminLayout({ children, title, description }: BrandAdminLay
             <span className="text-sm font-semibold text-foreground">
               {brandInfo?.brand_name ?? 'Mi Marca'}
             </span>
+          </div>
+          {/* Notification bell */}
+          <div className="ml-auto">
+            <Link
+              to="/marca/leads"
+              className="relative flex items-center justify-center h-8 w-8 rounded-lg hover:bg-muted transition-colors"
+              title="Ver leads nuevos"
+            >
+              <Bell className="h-5 w-5 text-muted-foreground" />
+              {newLeadsCount !== undefined && newLeadsCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-red-500 rounded-full">
+                  {newLeadsCount > 9 ? '9+' : newLeadsCount}
+                </span>
+              )}
+            </Link>
           </div>
         </div>
       </header>
