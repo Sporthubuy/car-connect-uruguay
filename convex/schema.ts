@@ -276,4 +276,17 @@ export default defineSchema({
     key: v.string(),
     value: v.string(),
   }).index("by_key", ["key"]),
+
+  // Homepage Banners
+  banners: defineTable({
+    title: v.string(),
+    subtitle: v.optional(v.string()),
+    imageUrl: v.string(),
+    linkUrl: v.optional(v.string()),
+    linkText: v.optional(v.string()),
+    order: v.number(),
+    isActive: v.boolean(),
+  })
+    .index("by_order", ["order"])
+    .index("by_active", ["isActive"]),
 });

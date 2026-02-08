@@ -11,6 +11,7 @@
 import type * as activations from "../activations.js";
 import type * as admin from "../admin.js";
 import type * as auth from "../auth.js";
+import type * as banners from "../banners.js";
 import type * as cars from "../cars.js";
 import type * as communities from "../communities.js";
 import type * as events from "../events.js";
@@ -29,6 +30,7 @@ declare const fullApi: ApiFromModules<{
   activations: typeof activations;
   admin: typeof admin;
   auth: typeof auth;
+  banners: typeof banners;
   cars: typeof cars;
   communities: typeof communities;
   events: typeof events;

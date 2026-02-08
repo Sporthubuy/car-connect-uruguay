@@ -4,11 +4,11 @@ import { api } from '../../convex/_generated/api';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { CarCard } from '@/components/cars/CarCard';
+import { BannerCarousel } from '@/components/home/BannerCarousel';
 import {
   ArrowRight,
   Car,
   MessageSquare,
-  CalendarDays,
   Shield,
   Star,
   Users,
@@ -285,27 +285,8 @@ const Index = () => {
         </section>
       )}
 
-      {/* CTA Section */}
-      <section className="py-16 bg-primary">
-        <div className="container-wide text-center">
-          <CalendarDays className="h-12 w-12 text-primary-foreground/80 mx-auto mb-6" />
-          <h2 className="text-2xl md:text-3xl font-bold text-primary-foreground mb-4">
-            ¿Ya tenés un auto?
-          </h2>
-          <p className="text-primary-foreground/80 mb-8 max-w-xl mx-auto">
-            Activa tu vehículo con el número de chasis y accedé a beneficios
-            exclusivos, eventos privados y mucho más.
-          </p>
-          <Link to="/perfil">
-            <Button
-              size="lg"
-              className="bg-accent text-accent-foreground hover:bg-accent/90"
-            >
-              Activar mi vehículo
-            </Button>
-          </Link>
-        </div>
-      </section>
+      {/* Banner Carousel */}
+      <BannerCarousel />
     </Layout>
   );
 };

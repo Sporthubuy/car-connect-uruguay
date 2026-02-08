@@ -40,6 +40,8 @@ import AdminComments from "./pages/admin/AdminComments";
 import AdminCommunities from "./pages/admin/AdminCommunities";
 import AdminCommunityForm from "./pages/admin/AdminCommunityForm";
 import AdminCommunityPosts from "./pages/admin/AdminCommunityPosts";
+import AdminBanners from "./pages/admin/AdminBanners";
+import AdminBannerForm from "./pages/admin/AdminBannerForm";
 // Brand admin pages
 import BrandAdminDashboard from "./pages/brand-admin/BrandAdminDashboard";
 import BrandAdminContacts from "./pages/brand-admin/BrandAdminContacts";
@@ -102,6 +104,9 @@ const App = () => (
             <Route path="/admin/communities/new" element={<AdminGuard><AdminCommunityForm /></AdminGuard>} />
             <Route path="/admin/communities/:communityId" element={<AdminGuard><AdminCommunityForm /></AdminGuard>} />
             <Route path="/admin/communities/:communityId/posts" element={<AdminGuard><AdminCommunityPosts /></AdminGuard>} />
+            <Route path="/admin/banners" element={<AdminGuard><AdminBanners /></AdminGuard>} />
+            <Route path="/admin/banners/new" element={<AdminGuard><AdminBannerForm /></AdminGuard>} />
+            <Route path="/admin/banners/:bannerId" element={<AdminGuard><AdminBannerForm /></AdminGuard>} />
             {/* Brand admin routes */}
             <Route path="/marca/login" element={<BrandAdminLogin />} />
             <Route path="/marca" element={<BrandAdminGuard><BrandAdminDashboard /></BrandAdminGuard>} />

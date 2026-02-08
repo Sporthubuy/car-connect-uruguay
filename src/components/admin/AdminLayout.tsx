@@ -14,10 +14,12 @@ import {
   ShieldCheck,
   Newspaper,
   Settings,
+  Image,
 } from 'lucide-react';
 
 const adminNav = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+  { name: 'Banners', href: '/admin/banners', icon: Image },
   { name: 'Marcas', href: '/admin/brands', icon: Building2 },
   { name: 'Modelos', href: '/admin/models', icon: Car },
   { name: 'Leads', href: '/admin/leads', icon: MessageSquare },
